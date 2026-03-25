@@ -1,0 +1,13 @@
+Using specified deployer account: 0x976EA74026E726554dB657fA54763abd0C3a0aa9
+Deploying SemaphoreVerifier...
+SemaphoreVerifier deployed to: 0x1CfD8455F189c56a4FBd81EB7D4118DB04616BA8
+Deploying Semaphore...
+HardhatEthersError: The contract Semaphore is missing links for the following libraries:
+* poseidon-solidity/PoseidonT3.sol:PoseidonT3
+
+Learn more about linking contracts at https://v2.hardhat.org/hardhat-runner/plugins/nomicfoundation-hardhat-ethers#library-linking
+
+    at collectLibrariesAndLink (C:\Users\kiran\Downloads\SecureVote\SecureVote\blockchain\node_modules\@nomicfoundation\hardhat-ethers\src\internal\helpers.ts:294:11)
+    at getContractFactoryFromArtifact (C:\Users\kiran\Downloads\SecureVote\SecureVote\blockchain\node_modules\@nomicfoundation\hardhat-ethers\src\internal\helpers.ts:178:32)
+    at getContractFactory (C:\Users\kiran\Downloads\SecureVote\SecureVote\blockchain\node_modules\@nomicfoundation\hardhat-ethers\src\internal\helpers.ts:122:12)
+    at main (C:\Users\kiran\Downloads\SecureVote\SecureVote\blockchain\scripts\deploy.js:28:21)

@@ -1,0 +1,239 @@
+import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
+import { ethers } from "ethers";
+import { contractAddress, abi } from "../config";
+import AnalyticsDashboard from "../components/AnalyticsDashboard";
+
+function Dashboard() {
+  const [contract, setContract] = useState(null);
+  const [results, setResults] = useState([]);
+  const [electionState, setElectionState] = useState(0); 
+  const [startTime, setStartTime] = useState(0);
+  const [endTime, setEndTime] = useState(0);
+  const [pastElections, setPastElections] = useState([]);
+  const [currentTime, setCurrentTime] = useState(Math.floor(Date.now() / 1000));
+  const [loading, setLoading] = useState(true);
+  const [walletConnected, setWalletConnected] = useState(false);
+  const [allElections, setAllElections] = useState([]);
+
+  useEffect(() => {
+    init();
+    const interval = setInterval(() => {
+      setCurrentTime(Math.floor(Date.now() / 1000));
+    }, 1000);
+
+    const handleChainChanged = () => window.location.reload();
+
+    if (window.ethereum) {
+      window.ethereum.on("accountsChanged", init);
+      window.ethereum.on("chainChanged", handleChainChanged);
+    }
+
+    return () => {
+      clearInterval(interval);
+      if (window.ethereum) {
+        window.ethereum.removeListener("accountsChanged", init);
+        window.ethereum.removeListener("chainChanged", handleChainChanged);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    if (contract && electionState === 1 && endTime > 0 && currentTime > endTime && results.length === 0) {
+      fetchResults(contract);
+    }
+  }, [currentTime, contract, electionState, endTime, results.length]);
+
+  const fetchResults = async (sc) => {
+    try {
+      const cands = await sc.getCandidates();
+      const res = [];
+      for (let i = 0; i < cands.length; i++) {
+        const count = await sc.getVotes(i);
+        res.push({ name: cands[i].name, logoUrl: cands[i].logoUrl, votes: count.toString() });
+      }
+      setResults(res);
+    } catch (err) {
+      console.error("Error fetching results in Dashboard:", err);
+    }
+  };
+
+  const init = async () => {
+    if (!window.ethereum) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      setWalletConnected(accounts.length > 0);
+
+      // We can read data even without signer using default provider if possible, 
+      // but if wallet is connected, we use provider directly.
+      const sc = new ethers.Contract(contractAddress, abi, provider);
+      setContract(sc);
+
+      const count = await sc.electionCount();
+      const electionsArr = [];
+      for (let i = 1; i <= Number(count); i++) {
+        const e = await sc.elections(i);
+        if (Number(e.state) === 1) { // Ongoing
+          electionsArr.push({
+            id: Number(e.id),
+            title: e.title,
+            state: Number(e.state),
+            startTime: Number(e.startTime),
+            endTime: Number(e.endTime)
+          });
+        }
+      }
+      setAllElections(electionsArr);
+
+      // We still keep the legacy single-state fetch for the "main" highlight if needed,
+      // but we'll focus on allElections now.
+
+      try {
+        const past = await sc.getPastElections();
+        const formattedPast = past.map(p => ({
+          id: Number(p.id),
+          title: p.title,
+          winnerName: p.winnerName,
+          winnerVotes: Number(p.winnerVotes),
+          totalVotes: Number(p.totalVotes)
+        }));
+        setPastElections(formattedPast);
+      } catch (err) {
+        console.warn("Could not fetch past elections (Contract might not be updated):", err);
+      }
+
+    } catch (err) {
+      console.error("Error connecting to smart contract:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isVotingActive = electionState === 1 && currentTime >= startTime && currentTime <= endTime;
+  const isUpcoming = electionState === 1 && currentTime < startTime;
+  const isTimeUp = electionState === 1 && currentTime > endTime && endTime > 0;
+
+  return (
+    <div className="min-h-[calc(100vh-80px)] px-4 py-12 relative overflow-hidden">
+      {/* Decorative background elements */}
+      <div className="fixed top-0 left-0 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
+      <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
+
+      <div className="max-w-6xl mx-auto space-y-12">
+        {/* Header Section */}
+        <div className="text-center space-y-4 animate-fade-in-up">
+          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
+            Voter <span className="bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent">Dashboard</span>
+          </h1>
+          <p className="text-xl text-slate-300 max-w-2xl mx-auto font-light">
+            Monitor ongoing elections, prepare for upcoming ones, and review historical transparent results.
+          </p>
+        </div>
+
+        {loading ? (
+          <div className="flex justify-center items-center py-20">
+            <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            {/* Left Column: Active / Upcoming */}
+            <div className="lg:col-span-2 space-y-8">
+              
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+                Current Status
+              </h2>
+
+              {allElections.length > 0 ? (
+                <div className="grid gap-6">
+                  {allElections.map(e => {
+                    const isActive = currentTime >= e.startTime && currentTime <= e.endTime;
+                    return (
+                      <div key={e.id} className={`bg-gradient-to-br border p-8 rounded-3xl backdrop-blur-md shadow-2xl relative overflow-hidden group ${isActive ? "from-indigo-900/40 to-slate-900/80 border-indigo-500/30" : "from-slate-800/40 to-slate-900/80 border-slate-700"}`}>
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] group-hover:bg-indigo-500/20 transition-all duration-500"></div>
+                        
+                        <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold mb-6 border ${isActive ? "bg-green-500/20 border-green-500/50 text-green-400" : "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"}`}>
+                          {isActive ? "🟢 Active Election" : "⏳ Upcoming"}
+                        </div>
+                        <h3 className="text-3xl font-bold mb-2">{e.title}</h3>
+                        <p className="text-slate-300 mb-8 max-w-lg leading-relaxed">
+                          {isActive ? "The polls are currently open! Cast your secure vote now." : "This election has not started yet. Mark your calendar."}
+                          <br/><br/>
+                          <span className="text-indigo-300 font-medium">
+                            {isActive ? `Closes: ${new Date(e.endTime * 1000).toLocaleString()}` : `Starts: ${new Date(e.startTime * 1000).toLocaleString()}`}
+                          </span>
+                        </p>
+
+                        <Link to="/vote" className={`inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all bg-indigo-600 rounded-xl hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] ${!isActive && "opacity-50 cursor-not-allowed pointer-events-none"}`}>
+                          {isActive ? "Enter Voting Booth" : "Booth Closed"}
+                        </Link>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="bg-slate-800/40 border border-slate-700/50 p-8 flex flex-col items-center justify-center text-center rounded-3xl min-h-[300px]">
+                  <svg className="w-16 h-16 text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4M8 16l-4-4 4-4m12 0l4 4-4 4"></path></svg>
+                  <h3 className="text-2xl font-bold mb-2 text-slate-400">No Parallel Elections</h3>
+                  <p className="text-slate-500 max-w-md">There are currently no ongoing or upcoming elections initialized by the administrator.</p>
+                </div>
+              )}
+            </div>
+
+            {/* Right Column: Past Results */}
+            <div className="space-y-6">
+              <h2 className="text-2xl font-bold flex items-center gap-3">
+                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                History & Results
+              </h2>
+
+              <div className="bg-slate-800/50 border border-slate-700/80 rounded-3xl p-6 backdrop-blur-sm custom-scrollbar max-h-[600px] overflow-y-auto">
+                <div className="space-y-4">
+                  {/* Current Election if ended */}
+                  {(electionState === 2 || isTimeUp) && (
+                    <div className="bg-purple-900/20 border border-purple-500/30 p-5 rounded-2xl">
+                      <div className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">Current Cycle Concluded</div>
+                      <h4 className="text-xl font-bold text-white mb-2">Results are Live</h4>
+                      <p className="text-slate-400 text-sm">View the main dashboard panel for complete analytics and the declared winner of this election cycle.</p>
+                    </div>
+                  )}
+
+                  {/* Historical Elections from Smart Contract */}
+                  {pastElections.length === 0 && electionState !== 2 && !isTimeUp ? (
+                    <p className="text-slate-500 text-center py-10">No historical records available.</p>
+                  ) : (
+                    pastElections.slice().reverse().map((election, idx) => (
+                      <div key={idx} className="bg-slate-900/60 border border-slate-700/50 p-5 rounded-2xl hover:border-slate-500/50 transition-colors">
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Election #{election.id}: {election.title}</div>
+                        <h4 className="text-lg font-bold text-white mb-1">🏆 {election.winnerName}</h4>
+                        <div className="flex justify-between items-center mt-3 text-sm">
+                          <span className="text-green-400 font-medium">{election.winnerVotes} Votes</span>
+                          <span className="text-slate-500">{election.totalVotes} Total</span>
+                        </div>
+                        {/* Simple progress bar */}
+                        <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden">
+                          <div 
+                            className="bg-indigo-500 h-1.5 rounded-full" 
+                            style={{width: `${(election.winnerVotes / Math.max(election.totalVotes, 1)) * 100}%`}}
+                          ></div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export default Dashboard;
