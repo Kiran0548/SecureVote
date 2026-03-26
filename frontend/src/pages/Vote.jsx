@@ -98,15 +98,19 @@ function Vote() {
       const count = await sc.electionCount();
       const electionsArr = [];
       for (let i = 1; i <= Number(count); i++) {
-        const e = await sc.elections(i);
-        if (Number(e.state) === 1) { // Ongoing
-          electionsArr.push({
-            id: Number(e.id),
-            title: e.title,
-            state: Number(e.state),
-            startTime: Number(e.startTime),
-            endTime: Number(e.endTime)
-          });
+        try {
+          const e = await sc.elections(i);
+          if (Number(e.state) === 1) { // Ongoing
+            electionsArr.push({
+              id: Number(e.id),
+              title: e.title,
+              state: Number(e.state),
+              startTime: Number(e.startTime),
+              endTime: Number(e.endTime)
+            });
+          }
+        } catch (err) {
+          console.warn(`Failed to load election #${i}:`, err);
         }
       }
       setAllElections(electionsArr);
@@ -280,13 +284,13 @@ function Vote() {
       
       if (receipt) {
         // Transaction confirmed — fetch updated counts immediately
-        await fetchCandidates(contract);
+        await fetchCandidates(contract, selectedElectionId);
         await init();
       } else {
         // Transaction submitted but not yet confirmed — retry after delay
         setTimeout(async () => {
           try {
-            await fetchCandidates(contract);
+            await fetchCandidates(contract, selectedElectionId);
             await init();
           } catch (e) {
             console.warn("Delayed refetch failed:", e);

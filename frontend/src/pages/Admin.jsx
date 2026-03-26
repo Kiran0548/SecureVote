@@ -128,14 +128,18 @@ function Admin() {
       const count = await sc.electionCount();
       const electionsArr = [];
       for (let i = 1; i <= Number(count); i++) {
-        const e = await sc.elections(i);
-        electionsArr.push({
-          id: Number(e.id),
-          title: e.title,
-          state: Number(e.state),
-          startTime: Number(e.startTime),
-          endTime: Number(e.endTime)
-        });
+        try {
+          const e = await sc.elections(i);
+          electionsArr.push({
+            id: Number(e.id),
+            title: e.title,
+            state: Number(e.state),
+            startTime: Number(e.startTime),
+            endTime: Number(e.endTime)
+          });
+        } catch (err) {
+          console.warn(`Failed to load election #${i}:`, err);
+        }
       }
       setAllElections(electionsArr);
 
@@ -288,6 +292,16 @@ function Admin() {
       
       const startTimestamp = Math.floor(new Date(startTime).getTime() / 1000);
       const endTimestamp = Math.floor(new Date(endTime).getTime() / 1000);
+
+      if (isNaN(startTimestamp) || isNaN(endTimestamp)) {
+        alert("Invalid start or end time selected.");
+        return;
+      }
+
+      if (endTimestamp <= startTimestamp) {
+        alert("End time must be after start time.");
+        return;
+      }
 
       const tx = await sc.createElection(
          electionTitle.trim(), namesArray, logosArray, manifestosArray, videosArray, startTimestamp, endTimestamp,
