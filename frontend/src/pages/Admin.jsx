@@ -137,11 +137,12 @@ function Admin() {
           endTime: Number(e.endTime)
         });
       }
-      setAllElections(electionsArr);
+      const ongoingElections = electionsArr.filter(e => e.state === 1);
+      setAllElections(ongoingElections);
 
       // Automatically select the latest election if none selected
-      if (!selectedElectionId && electionsArr.length > 0) {
-        const latest = electionsArr[electionsArr.length - 1];
+      if (!selectedElectionId && ongoingElections.length > 0) {
+        const latest = ongoingElections[ongoingElections.length - 1];
         setSelectedElectionId(latest.id);
         setElectionState(latest.state);
         setElectionEndTime(latest.endTime);
