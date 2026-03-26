@@ -11,7 +11,7 @@ function Admin() {
   const [contract, setContract] = useState(null);
   const [isOwner, setIsOwner] = useState(false);
   const [whitelistAddress, setWhitelistAddress] = useState("");
-  const [candidates, setCandidates] = useState([{ name: "", logoUrl: "", manifesto: "", videoFile: null }]);
+  const [candidates, setCandidates] = useState([{ name: "", logoUrl: "", logoFile: null, manifesto: "", videoFile: null }]);
   const [loading, setLoading] = useState(false);
   const [pinataJwt, setPinataJwt] = useState(import.meta.env.VITE_PINATA_JWT || localStorage.getItem("pinataJwt") || "");
 
@@ -243,7 +243,7 @@ function Admin() {
   };
 
   const handleAddCandidate = () => {
-    setCandidates([...candidates, { name: "", logoUrl: "", manifesto: "", videoFile: null }]);
+    setCandidates([...candidates, { name: "", logoUrl: "", logoFile: null, manifesto: "", videoFile: null }]);
   };
 
   const handleRemoveCandidate = (index) => {
@@ -273,7 +273,13 @@ function Admin() {
       
       for (const c of validCandidates) {
          namesArray.push(c.name.trim());
-         logosArray.push(c.logoUrl ? c.logoUrl.trim() : "");
+         
+         let logoHash = c.logoUrl ? c.logoUrl.trim() : "";
+         if (c.logoFile) {
+            const cid = await uploadFileToIPFS(c.logoFile, pinataJwt);
+            logoHash = "https://gateway.pinata.cloud/ipfs/" + cid;
+         }
+         logosArray.push(logoHash);
          
          let manifestoHash = "";
          if (c.manifesto && c.manifesto.trim() !== "") {
@@ -304,13 +310,12 @@ function Admin() {
       }
 
       const tx = await sc.createElection(
-         electionTitle.trim(), namesArray, logosArray, manifestosArray, videosArray, startTimestamp, endTimestamp,
-         { gasLimit: 5000000 }
+         electionTitle.trim(), namesArray, logosArray, manifestosArray, videosArray, startTimestamp, endTimestamp
       );
       
       alert("Election creation transaction sent! It will appear in the list once confirmed.");
       setElectionTitle("");
-      setCandidates([{ name: "", logoUrl: "", manifesto: "", videoFile: null }]);
+      setCandidates([{ name: "", logoUrl: "", logoFile: null, manifesto: "", videoFile: null }]);
       setStartTime("");
       setEndTime("");
       
@@ -617,6 +622,16 @@ function Admin() {
                             onChange={(e) => handleCandidateChange(idx, 'logoUrl', e.target.value)}
                             disabled={loading}
                           />
+                          <div className="flex flex-col">
+                            <label className="text-xs text-slate-400 mb-1">Candidate Logo (Image, optional)</label>
+                            <input
+                              type="file"
+                              accept="image/*"
+                              className="w-full text-slate-300 text-sm file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-900/50 file:text-indigo-400 hover:file:bg-indigo-900/80 cursor-pointer"
+                              onChange={(e) => handleCandidateChange(idx, 'logoFile', e.target.files[0])}
+                              disabled={loading}
+                            />
+                          </div>
                           <textarea
                             placeholder="Candidate Manifesto / Agenda (optional)"
                             className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors text-sm"
