@@ -13,7 +13,7 @@ function Admin() {
   const [whitelistAddress, setWhitelistAddress] = useState("");
   const [candidates, setCandidates] = useState([{ name: "", logoUrl: "", manifesto: "", videoFile: null }]);
   const [loading, setLoading] = useState(false);
-  const [pinataJwt, setPinataJwt] = useState(localStorage.getItem("pinataJwt") || "");
+  const [pinataJwt, setPinataJwt] = useState(import.meta.env.VITE_PINATA_JWT || localStorage.getItem("pinataJwt") || "");
 
   // Face Registration states
   const [photo, setPhoto] = useState(null);
