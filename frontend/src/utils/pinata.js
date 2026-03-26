@@ -12,7 +12,9 @@ export const uploadFileToIPFS = async (file, jwt) => {
     });
     
     if (!res.ok) {
-        throw new Error(`Pinata upload failed with status ${res.status}`);
+        const errText = await res.text();
+        console.error("Pinata Error Response:", errText);
+        throw new Error(`Pinata upload failed [${res.status}]: ${errText || "Unknown Error"}`);
     }
     
     const resData = await res.json();
