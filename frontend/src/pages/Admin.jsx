@@ -34,6 +34,7 @@ function Admin() {
   const [allElections, setAllElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState(null);
   const [electionTitle, setElectionTitle] = useState("");
+  const visibleElections = allElections.slice(-3).reverse();
 
   useEffect(() => {
     init();
@@ -461,11 +462,11 @@ function Admin() {
                 </button>
              </div>
              
-             {allElections.length === 0 ? (
+             {visibleElections.length === 0 ? (
                <p className="text-slate-500 italic text-center py-4">No elections have been created yet.</p>
              ) : (
                <div className="grid gap-4">
-                 {allElections.map(e => (
+                 {visibleElections.map(e => (
                    <div 
                     key={e.id} 
                     className={`flex items-center justify-between p-4 rounded-xl border transition-all ${selectedElectionId === e.id ? "bg-indigo-900/20 border-indigo-500/50" : "bg-slate-800/40 border-slate-700 hover:border-slate-600"}`}
