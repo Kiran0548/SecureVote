@@ -15,8 +15,6 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [walletConnected, setWalletConnected] = useState(false);
   const [allElections, setAllElections] = useState([]);
-  const visibleElections = allElections.slice(-3).reverse();
-  const visiblePastElections = pastElections.slice(-3).reverse();
 
   useEffect(() => {
     init();
@@ -152,9 +150,9 @@ function Dashboard() {
                 Current Status
               </h2>
 
-              {visibleElections.length > 0 ? (
+              {allElections.length > 0 ? (
                 <div className="grid gap-6">
-                  {visibleElections.map(e => {
+                  {allElections.map(e => {
                     const isActive = currentTime >= e.startTime && currentTime <= e.endTime;
                     return (
                       <div key={e.id} className={`bg-gradient-to-br border p-8 rounded-3xl backdrop-blur-md shadow-2xl relative overflow-hidden group ${isActive ? "from-indigo-900/40 to-slate-900/80 border-indigo-500/30" : "from-slate-800/40 to-slate-900/80 border-slate-700"}`}>
@@ -207,10 +205,10 @@ function Dashboard() {
                   )}
 
                   {/* Historical Elections from Smart Contract */}
-                  {visiblePastElections.length === 0 && electionState !== 2 && !isTimeUp ? (
+                  {pastElections.length === 0 && electionState !== 2 && !isTimeUp ? (
                     <p className="text-slate-500 text-center py-10">No historical records available.</p>
                   ) : (
-                    visiblePastElections.map((election, idx) => (
+                    pastElections.slice().reverse().map((election, idx) => (
                       <div key={idx} className="bg-slate-900/60 border border-slate-700/50 p-5 rounded-2xl hover:border-slate-500/50 transition-colors">
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Election #{election.id}: {election.title}</div>
                         <h4 className="text-lg font-bold text-white mb-1">🏆 {election.winnerName}</h4>
