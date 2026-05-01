@@ -34,6 +34,7 @@ function Admin() {
   const [allElections, setAllElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState(null);
   const [electionTitle, setElectionTitle] = useState("");
+  const [showAllElections, setShowAllElections] = useState(false);
 
   useEffect(() => {
     init();
@@ -350,6 +351,9 @@ function Admin() {
     setResults([]);
   };
 
+  const sortedElections = allElections.slice().sort((a, b) => b.id - a.id);
+  const visibleElections = showAllElections ? sortedElections : sortedElections.slice(0, 3);
+
   const handleExport = async (type) => {
     const sc = await ensureContract();
     if (!sc || results.length === 0) return;
@@ -451,59 +455,79 @@ function Admin() {
           
           {/* Multi-Election Status & Management */}
           <div className="bg-slate-900/80 border border-slate-700 p-8 rounded-2xl shadow-lg">
-             <div className="flex justify-between items-center mb-6">
-                <h3 className="text-xl font-bold text-white">Election Management</h3>
-                <button 
-                  onClick={() => setSelectedElectionId(null)}
-                  className="text-indigo-400 hover:text-indigo-300 text-sm font-medium transition-colors"
-                >
-                  + Create New Election
-                </button>
+             <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                <div className="space-y-2">
+                  <div className="inline-flex items-center rounded-full border border-indigo-500/30 bg-indigo-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-indigo-300">
+                    Election Control
+                  </div>
+                  <div>
+                    <h3 className="text-3xl font-bold tracking-tight text-white">Election Management</h3>
+                    <p className="mt-1 text-sm text-slate-400">
+                      Showing the latest 3 by default to keep this panel clean. Use View All anytime.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-3">
+                  {allElections.length > 3 && (
+                    <button
+                      onClick={() => setShowAllElections((prev) => !prev)}
+                      className="rounded-full border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-indigo-400/50 hover:text-white"
+                    >
+                      {showAllElections ? "Show Latest 3" : "View All"}
+                    </button>
+                  )}
+                  <button 
+                    onClick={() => setSelectedElectionId(null)}
+                    className="rounded-full border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-medium text-indigo-300 transition-colors hover:bg-indigo-500/20 hover:text-indigo-200"
+                  >
+                    + Create New Election
+                  </button>
+                </div>
              </div>
              
              {allElections.length === 0 ? (
                <p className="text-slate-500 italic text-center py-4">No elections have been created yet.</p>
              ) : (
                <div className="grid gap-4">
-                 {allElections.map(e => (
+                 {visibleElections.map(e => (
                    <div 
                     key={e.id} 
-                    className={`flex items-center justify-between p-4 rounded-xl border transition-all ${selectedElectionId === e.id ? "bg-indigo-900/20 border-indigo-500/50" : "bg-slate-800/40 border-slate-700 hover:border-slate-600"}`}
+                    className={`flex flex-col gap-4 rounded-2xl border p-5 transition-all md:flex-row md:items-center md:justify-between ${selectedElectionId === e.id ? "bg-indigo-900/20 border-indigo-500/50 shadow-[0_0_0_1px_rgba(99,102,241,0.15)]" : "bg-slate-800/40 border-slate-700 hover:border-slate-600"}`}
                    >
-                     <div>
-                       <div className="flex items-center gap-2 mb-1">
-                         <span className="text-xs font-mono text-slate-500">#{e.id}</span>
-                         <h4 className="font-bold text-white">{e.title}</h4>
-                         <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold uppercase tracking-wider ${e.state === 1 ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-slate-700 text-slate-400"}`}>
-                           {e.state === 1 ? "Ongoing" : "Ended"}
-                         </span>
-                       </div>
-                       <p className="text-xs text-slate-500">Ends: {new Date(e.endTime * 1000).toLocaleString()}</p>
-                     </div>
-                     <div className="flex gap-2">
-                       {e.state === 1 && (
-                         <button
-                           onClick={() => handleTerminateElection(e.id)}
-                           disabled={loading}
-                           className="text-[10px] bg-red-600/10 hover:bg-red-600/20 text-red-500 border border-red-600/20 px-3 py-1.5 rounded-lg transition-all"
-                         >
-                           Terminate
-                         </button>
-                       )}
+                      <div>
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <span className="rounded-full bg-slate-900/80 px-2.5 py-1 text-xs font-mono text-slate-400 ring-1 ring-slate-700">#{e.id}</span>
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${e.state === 1 ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-slate-700 text-slate-300 border border-slate-600"}`}>
+                            {e.state === 1 ? "Ongoing" : "Ended"}
+                          </span>
+                        </div>
+                        <h4 className="text-xl font-bold tracking-tight text-white">{e.title}</h4>
+                        <p className="mt-1 text-sm text-slate-400">Ends: {new Date(e.endTime * 1000).toLocaleString()}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2 md:justify-end">
+                        {e.state === 1 && (
+                          <button
+                            onClick={() => handleTerminateElection(e.id)}
+                            disabled={loading}
+                            className="rounded-xl border border-red-600/20 bg-red-600/10 px-4 py-2 text-xs text-red-400 transition-all hover:bg-red-600/20"
+                          >
+                            Terminate
+                          </button>
+                        )}
                         <button
                           onClick={async () => {
                             setSelectedElectionId(e.id);
                             setElectionState(e.state);
                             setElectionEndTime(e.endTime);
                             const sc = await ensureContract();
-                            if (sc) fetchResults(sc, e.id);
-                            // Scroll to results section
-                            document.getElementById("results-section")?.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                          className={`text-[10px] border px-3 py-1.5 rounded-lg transition-all ${selectedElectionId === e.id ? "bg-indigo-600 text-white border-indigo-500" : "bg-slate-700 hover:bg-slate-600 text-slate-300 border-slate-600"}`}
-                        >
-                         {e.state === 1 ? "View Live Results" : "View Final Results"}
-                       </button>
+                             if (sc) fetchResults(sc, e.id);
+                             // Scroll to results section
+                             document.getElementById("results-section")?.scrollIntoView({ behavior: 'smooth' });
+                           }}
+                           className={`rounded-xl border px-4 py-2 text-xs transition-all ${selectedElectionId === e.id ? "border-indigo-500 bg-gradient-to-r from-indigo-600 to-violet-600 text-white shadow-lg shadow-indigo-500/20" : "border-slate-600 bg-slate-700 text-slate-200 hover:bg-slate-600"}`}
+                         >
+                          {e.state === 1 ? "View Live Results" : "View Final Results"}
+                        </button>
                      </div>
                    </div>
                  ))}

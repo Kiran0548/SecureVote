@@ -15,6 +15,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [walletConnected, setWalletConnected] = useState(false);
   const [allElections, setAllElections] = useState([]);
+  const [showAllPastElections, setShowAllPastElections] = useState(false);
 
   useEffect(() => {
     init();
@@ -117,6 +118,8 @@ function Dashboard() {
   const isVotingActive = electionState === 1 && currentTime >= startTime && currentTime <= endTime;
   const isUpcoming = electionState === 1 && currentTime < startTime;
   const isTimeUp = electionState === 1 && currentTime > endTime && endTime > 0;
+  const sortedPastElections = pastElections.slice().sort((a, b) => b.id - a.id);
+  const visiblePastElections = showAllPastElections ? sortedPastElections : sortedPastElections.slice(0, 3);
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-4 py-12 relative overflow-hidden">
@@ -188,10 +191,20 @@ function Dashboard() {
 
             {/* Right Column: Past Results */}
             <div className="space-y-6">
-              <h2 className="text-2xl font-bold flex items-center gap-3">
-                <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
-                History & Results
-              </h2>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-2xl font-bold flex items-center gap-3">
+                  <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
+                  History & Results
+                </h2>
+                {pastElections.length > 3 && (
+                  <button
+                    onClick={() => setShowAllPastElections((prev) => !prev)}
+                    className="rounded-full border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-purple-400/50 hover:text-white"
+                  >
+                    {showAllPastElections ? "Show Latest 3" : "View All"}
+                  </button>
+                )}
+              </div>
 
               <div className="bg-slate-800/50 border border-slate-700/80 rounded-3xl p-6 backdrop-blur-sm custom-scrollbar max-h-[600px] overflow-y-auto">
                 <div className="space-y-4">
@@ -208,7 +221,7 @@ function Dashboard() {
                   {pastElections.length === 0 && electionState !== 2 && !isTimeUp ? (
                     <p className="text-slate-500 text-center py-10">No historical records available.</p>
                   ) : (
-                    pastElections.slice().reverse().map((election, idx) => (
+                    visiblePastElections.map((election, idx) => (
                       <div key={idx} className="bg-slate-900/60 border border-slate-700/50 p-5 rounded-2xl hover:border-slate-500/50 transition-colors">
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Election #{election.id}: {election.title}</div>
                         <h4 className="text-lg font-bold text-white mb-1">🏆 {election.winnerName}</h4>
