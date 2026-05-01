@@ -17,10 +17,10 @@ function Home() {
           </div>
 
           <div className="space-y-6">
-            <h1 className="app-title max-w-4xl text-5xl font-bold leading-[0.95] md:text-7xl">
-              Vote with the confidence of a{" "}
-              <span className="theme-gradient-text">sealed ballot</span> and the
-              transparency of the blockchain.
+            <h1 className="app-title max-w-4xl text-4xl font-bold leading-[1.02] md:text-6xl">
+              Every vote
+              {" "}
+              <span className="theme-gradient-text">secure</span>, every result trusted.
             </h1>
 
             <p className="max-w-2xl text-lg leading-8 theme-text-muted md:text-xl">
