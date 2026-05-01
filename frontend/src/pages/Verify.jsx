@@ -70,31 +70,34 @@ function Verify() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-16 min-h-[calc(100vh-80px)] relative">
-      <div className="text-center mb-12 animate-fade-in-up">
-        <h1 className="text-4xl font-bold mb-4">Verify Cryptographic Receipt</h1>
+      <div className="theme-card vote-page-hero mb-12 rounded-[2rem] px-6 py-10 text-center animate-fade-in-up md:px-10">
+        <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] theme-text-muted">
+          Receipt verification portal
+        </div>
+        <h1 className="app-title mb-4 text-4xl font-bold md:text-5xl">Verify Cryptographic Receipt</h1>
         <p className="text-slate-400 max-w-2xl mx-auto">
           Paste your Transaction Hash below to cryptographically prove that your vote 
           was successfully included in the blockchain tally. For privacy, candidate choices are never displayed.
         </p>
       </div>
 
-      <div className="bg-slate-800/80 border border-slate-700 p-8 rounded-3xl backdrop-blur-md shadow-2xl relative">
+      <div className="theme-card p-8 rounded-3xl relative">
         <div className="space-y-6">
           <div>
-            <label className="block text-sm font-medium text-slate-400 mb-2">Transaction Hash</label>
+            <label className="block text-sm font-medium theme-text-muted mb-2">Transaction Hash</label>
             <input 
               type="text" 
               placeholder="0xabc123... (Enter 66-character hash)"
               value={txHash}
               onChange={(e) => setTxHash(e.target.value.trim())}
-              className="w-full bg-slate-900 border border-slate-700 rounded-xl px-5 py-4 text-white focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 font-mono"
+              className="w-full rounded-xl border border-[var(--border-soft)] bg-[var(--surface-3)] px-5 py-4 text-[var(--text-main)] placeholder:text-[var(--text-soft)] focus:outline-none focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/50 font-mono"
             />
           </div>
           
           <button 
             onClick={verifyTransaction}
             disabled={loading}
-            className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-4 px-4 rounded-xl transition duration-200 shadow-lg hover:shadow-indigo-500/30"
+            className="theme-primary-btn w-full rounded-xl px-4 py-4 text-base font-bold"
           >
             {loading ? "Verifying on Blockchain..." : "Verify Vote Authenticity"}
           </button>

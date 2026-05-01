@@ -116,25 +116,22 @@ function Dashboard() {
   };
 
   const isVotingActive = electionState === 1 && currentTime >= startTime && currentTime <= endTime;
-  const isUpcoming = electionState === 1 && currentTime < startTime;
   const isTimeUp = electionState === 1 && currentTime > endTime && endTime > 0;
   const sortedPastElections = pastElections.slice().sort((a, b) => b.id - a.id);
   const visiblePastElections = showAllPastElections ? sortedPastElections : sortedPastElections.slice(0, 3);
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-4 py-12 relative overflow-hidden">
-      {/* Decorative background elements */}
-      <div className="fixed top-0 left-0 w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
-      <div className="fixed bottom-0 right-0 w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
-
       <div className="max-w-6xl mx-auto space-y-12">
-        {/* Header Section */}
-        <div className="text-center space-y-4 animate-fade-in-up">
-          <h1 className="text-5xl md:text-6xl font-extrabold tracking-tight">
-            Voter <span className="bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent">Dashboard</span>
+        <div className="theme-card vote-page-hero rounded-[2rem] px-6 py-10 text-center animate-fade-in-up md:px-10">
+          <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] theme-text-muted">
+            Live election intelligence
+          </div>
+          <h1 className="app-title text-5xl md:text-6xl font-extrabold tracking-tight">
+            Voter <span className="theme-gradient-text">Dashboard</span>
           </h1>
-          <p className="text-xl text-slate-300 max-w-2xl mx-auto font-light">
-            Monitor ongoing elections, prepare for upcoming ones, and review historical transparent results.
+          <p className="mx-auto max-w-2xl pt-4 text-lg theme-text-muted md:text-xl">
+            Monitor ongoing elections, prepare for upcoming ones, and review transparent historical results in one place.
           </p>
         </div>
 
@@ -162,7 +159,7 @@ function Dashboard() {
                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] group-hover:bg-indigo-500/20 transition-all duration-500"></div>
                         
                         <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold mb-6 border ${isActive ? "bg-green-500/20 border-green-500/50 text-green-400" : "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"}`}>
-                          {isActive ? "🟢 Active Election" : "⏳ Upcoming"}
+                          {isActive ? "Active Election" : "Upcoming"}
                         </div>
                         <h3 className="text-3xl font-bold mb-2">{e.title}</h3>
                         <p className="text-slate-300 mb-8 max-w-lg leading-relaxed">
@@ -224,7 +221,7 @@ function Dashboard() {
                     visiblePastElections.map((election, idx) => (
                       <div key={idx} className="bg-slate-900/60 border border-slate-700/50 p-5 rounded-2xl hover:border-slate-500/50 transition-colors">
                         <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Election #{election.id}: {election.title}</div>
-                        <h4 className="text-lg font-bold text-white mb-1">🏆 {election.winnerName}</h4>
+                        <h4 className="text-lg font-bold text-white mb-1">Winner: {election.winnerName}</h4>
                         <div className="flex justify-between items-center mt-3 text-sm">
                           <span className="text-green-400 font-medium">{election.winnerVotes} Votes</span>
                           <span className="text-slate-500">{election.totalVotes} Total</span>

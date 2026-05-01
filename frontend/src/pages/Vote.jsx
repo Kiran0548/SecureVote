@@ -339,8 +339,11 @@ function Vote() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-12">
-      <div className="text-center mb-12">
-        <h1 className="text-4xl font-bold mb-4">Election Booth</h1>
+      <div className="theme-card vote-page-hero mb-12 rounded-[2rem] px-6 py-10 text-center animate-fade-in-up md:px-10">
+        <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] theme-text-muted">
+          Secure voting booth
+        </div>
+        <h1 className="app-title mb-4 text-4xl font-bold md:text-5xl">Election Booth</h1>
         <p className="text-slate-400">Cast your vote securely on the blockchain.</p>
       </div>
 

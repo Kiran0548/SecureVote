@@ -1,44 +1,132 @@
 import { Link } from "react-router-dom";
 
+const signalItems = [
+  { label: "Anonymous", accent: "bg-emerald-500" },
+  { label: "Verified", accent: "bg-sky-500" },
+  { label: "On-chain", accent: "bg-indigo-500" },
+];
+
 function Home() {
   return (
-    <div className="flex flex-col items-center justify-center min-h-[calc(100vh-80px)] px-4">
-      <div className="max-w-4xl text-center space-y-8 animate-fade-in-up">
-        <h1 className="text-6xl md:text-7xl font-extrabold tracking-tight">
-          Decentralized <br className="md:hidden" />
-          <span className="bg-gradient-to-r from-blue-400 via-indigo-500 to-purple-500 bg-clip-text text-transparent drop-shadow-sm">
-            Voting System
-          </span>
-        </h1>
-        
-        <p className="text-xl md:text-2xl text-slate-300 max-w-2xl mx-auto leading-relaxed font-light">
-          Secure, transparent, and verifiable elections powered by Ethereum smart contracts. Your vote is immutable and anonymous.
-        </p>
+    <div className="relative px-4 pb-20 pt-10 md:px-6 md:pt-16">
+      <div className="mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-[1.15fr_0.85fr]">
+        <section className="space-y-8 animate-fade-in-up">
+          <div className="hero-badge">
+            <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
+            National-grade digital ballot experience
+          </div>
 
-        <div className="flex flex-col sm:flex-row gap-6 justify-center pt-8">
-          <Link
-            to="/vote"
-            className="group relative inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all duration-200 bg-indigo-600 rounded-full hover:bg-indigo-500 hover:shadow-[0_0_40px_rgba(99,102,241,0.6)] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 overflow-hidden"
-          >
-            <span className="absolute inset-0 w-full h-full -mt-1 rounded-full opacity-30 bg-gradient-to-b from-transparent via-transparent to-black"></span>
-            <span className="relative flex items-center gap-2">
-              Cast Your Vote
-              <svg className="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6"></path></svg>
-            </span>
-          </Link>
-          
-          <Link
-            to="/admin"
-            className="inline-flex items-center justify-center px-8 py-4 font-bold text-indigo-300 transition-all duration-200 bg-slate-800/50 border border-indigo-500/30 rounded-full hover:bg-slate-800 hover:text-white hover:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-600 backdrop-blur-sm"
-          >
-            Admin Portal
-          </Link>
-        </div>
+          <div className="space-y-6">
+            <h1 className="app-title max-w-4xl text-5xl font-bold leading-[0.95] md:text-7xl">
+              Vote with the confidence of a{" "}
+              <span className="theme-gradient-text">sealed ballot</span> and the
+              transparency of the blockchain.
+            </h1>
+
+            <p className="max-w-2xl text-lg leading-8 theme-text-muted md:text-xl">
+              SecureVote turns elections into a guided digital voting room with biometric
+              verification, anonymous proofs, and audit-ready receipts that citizens can trust.
+            </p>
+          </div>
+
+          <div className="flex flex-wrap gap-3">
+            {signalItems.map((item) => (
+              <span key={item.label} className="signal-chip text-sm font-semibold">
+                <span className={`h-2.5 w-2.5 rounded-full ${item.accent}`} />
+                {item.label}
+              </span>
+            ))}
+          </div>
+
+          <div className="flex flex-col gap-4 sm:flex-row">
+            <Link
+              to="/vote"
+              className="theme-primary-btn inline-flex items-center justify-center gap-2 rounded-2xl px-7 py-4 text-base font-bold"
+            >
+              Enter Voting Booth
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+              </svg>
+            </Link>
+
+            <Link
+              to="/dashboard"
+              className="theme-secondary-btn inline-flex items-center justify-center rounded-2xl px-7 py-4 text-base font-semibold"
+            >
+              Explore Live Dashboard
+            </Link>
+          </div>
+        </section>
+
+        <section className="hero-stage animate-fade-in-up">
+          <div className="hero-wire hidden lg:block" />
+
+          <div className="ballot-card">
+            <div className="ballot-slot" />
+
+            <div className="ballot-sheet">
+              <div className="mb-4 flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">
+                    Secure Ballot
+                  </p>
+                  <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
+                    Election Access Pass
+                  </h2>
+                </div>
+                <div className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
+                  Booth Open
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <div className="ballot-row">
+                  <div>
+                    <p className="font-bold text-slate-900">Face Authentication</p>
+                    <p className="text-sm text-slate-500">One voter. One verified entry.</p>
+                  </div>
+                  <div className="ballot-check">
+                    <svg className="h-4 w-4 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="ballot-row">
+                  <div>
+                    <p className="font-bold text-slate-900">Anonymous Proof</p>
+                    <p className="text-sm text-slate-500">Identity protected with zero knowledge.</p>
+                  </div>
+                  <div className="ballot-check">
+                    <svg className="h-4 w-4 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+
+                <div className="ballot-row">
+                  <div>
+                    <p className="font-bold text-slate-900">Blockchain Receipt</p>
+                    <p className="text-sm text-slate-500">Every valid vote stays publicly auditable.</p>
+                  </div>
+                  <div className="ballot-check">
+                    <svg className="h-4 w-4 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="ballot-seal">
+              <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+              </svg>
+              Trusted Vote
+            </div>
+          </div>
+        </section>
       </div>
-
-      {/* Decorative background elements */}
-      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-600/20 rounded-full blur-[120px] -z-10 pointer-events-none"></div>
-      <div className="fixed top-1/4 left-1/4 w-[400px] h-[400px] bg-purple-600/20 rounded-full blur-[100px] -z-10 pointer-events-none"></div>
     </div>
   );
 }
