@@ -7,6 +7,8 @@ import jsPDF from "jspdf";
 import { Identity } from "@semaphore-protocol/identity";
 import { Group } from "@semaphore-protocol/group";
 import { generateProof } from "@semaphore-protocol/proof";
+import { enrichElection, fetchElectionMetadataMap } from "../utils/electionMetadata";
+import { defaultVoterProfile, fetchVoterProfile, getVoterEligibilityReason, isVoterEligibleForElection } from "../utils/voterProfile";
 
 function Vote() {
   const [account, setAccount] = useState("");
@@ -36,6 +38,11 @@ function Vote() {
   const [electionCount, setElectionCount] = useState(0);
   const [identityString, setIdentityString] = useState(localStorage.getItem("semaphoreIdentity") || "");
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [electionAccessMode, setElectionAccessMode] = useState("all");
+  const [districtFilter, setDistrictFilter] = useState("");
+  const [localBodyFilter, setLocalBodyFilter] = useState("");
+  const [wardSearch, setWardSearch] = useState("");
+  const [voterProfile, setVoterProfile] = useState(defaultVoterProfile);
 
   useEffect(() => {
     init();
@@ -93,30 +100,82 @@ function Vote() {
     }
   };
 
+  const getOnChainVoterProfile = async (sc, walletAddress) => {
+    try {
+      const [exists, district, localBody, wardNumber] = await sc.getVoterProfile(walletAddress);
+      if (!exists) return null;
+      return {
+        walletAddress: walletAddress.toLowerCase(),
+        district,
+        localBody,
+        wardNumber,
+      };
+    } catch (error) {
+      console.warn("On-chain voter profile unavailable:", error);
+      return null;
+    }
+  };
+
+  const getOnChainElectionMetadata = async (sc, electionId) => {
+    try {
+      const [electionType, district, localBody, wardNumber] = await sc.getElectionMetadata(electionId);
+      return {
+        electionType: Number(electionType),
+        district,
+        localBody,
+        wardNumber,
+      };
+    } catch (error) {
+      console.warn(`On-chain metadata unavailable for election ${electionId}:`, error);
+      return null;
+    }
+  };
+
+  const getOnChainEligibility = async (sc, walletAddress, electionId) => {
+    try {
+      return await sc.canVoteInElection(walletAddress, electionId);
+    } catch (error) {
+      console.warn(`On-chain eligibility unavailable for election ${electionId}:`, error);
+      return null;
+    }
+  };
+
   const init = async () => {
     const sc = await ensureContract();
     if (!sc) return;
 
     try {
+      const metadataMap = await fetchElectionMetadataMap();
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (accounts.length === 0) return;
       
       const whitelisted = await sc.isWhitelisted(accounts[0]);
       setIsWhitelisted(whitelisted);
+      const backendProfile = await fetchVoterProfile(accounts[0]);
+      const onChainProfile = await getOnChainVoterProfile(sc, accounts[0]);
+      setVoterProfile({
+        ...backendProfile,
+        ...(onChainProfile || {}),
+      });
 
       const count = await sc.electionCount();
+      setElectionCount(Number(count));
       const electionsArr = [];
       for (let i = 1; i <= Number(count); i++) {
         try {
           const e = await sc.elections(i);
           if (Number(e.state) === 1) { // Ongoing
-            electionsArr.push({
+            const chainMetadata = await getOnChainElectionMetadata(sc, i);
+            const onChainEligible = await getOnChainEligibility(sc, accounts[0], i);
+            electionsArr.push(enrichElection({
               id: Number(e.id),
               title: e.title,
               state: Number(e.state),
               startTime: Number(e.startTime),
-              endTime: Number(e.endTime)
-            });
+              endTime: Number(e.endTime),
+              metadata: chainMetadata,
+              onChainEligible,
+            }, metadataMap));
           }
         } catch (err) {
           console.warn(`Failed to load election #${i}:`, err);
@@ -163,6 +222,14 @@ function Vote() {
   };
 
   const selectElection = (election) => {
+    const eligibilityReason = election?.onChainEligible === false
+      ? "Your current on-chain ward profile does not match this election. Please contact the administrator to update your ward assignment."
+      : getVoterEligibilityReason(voterProfile, election);
+    if (eligibilityReason) {
+      alert(eligibilityReason);
+      return;
+    }
+
     setSelectedElectionId(election.id);
     setSelectedElectionTitle(election.title);
     setElectionState(election.state);
@@ -292,6 +359,13 @@ function Vote() {
       alert("Anonymous identity not found! Please register first.");
       return;
     }
+    if (!selectedElection || selectedElection.onChainEligible === false || !isVoterEligibleForElection(voterProfile, selectedElection)) {
+      const reason = selectedElection?.onChainEligible === false
+        ? "Your current on-chain ward profile does not match this election. Please contact the administrator to update your ward assignment."
+        : getVoterEligibilityReason(voterProfile, selectedElection);
+      alert(reason || "You are not eligible for this election.");
+      return;
+    }
     
     try {
       setLoading(true);
@@ -414,6 +488,41 @@ function Vote() {
   };
 
   const [biometricsVerified, setBiometricsVerified] = useState(false);
+  const selectedElection = allElections.find((e) => e.id === selectedElectionId) || null;
+  const filteredElections = allElections.filter((election) => {
+    if (electionAccessMode === "global" && election.metadata?.electionType !== "global") {
+      return false;
+    }
+
+    if (electionAccessMode === "ward_based" && election.metadata?.electionType !== "ward_based") {
+      return false;
+    }
+
+    if (districtFilter.trim() && !election.metadata?.district.toLowerCase().includes(districtFilter.trim().toLowerCase())) {
+      return false;
+    }
+
+    if (localBodyFilter.trim() && !election.metadata?.localBody.toLowerCase().includes(localBodyFilter.trim().toLowerCase())) {
+      return false;
+    }
+
+    if (wardSearch.trim() && election.metadata?.wardNumber.trim() !== wardSearch.trim()) {
+      return false;
+    }
+
+    if (election.onChainEligible === false) {
+      return false;
+    }
+
+    if (!isVoterEligibleForElection(voterProfile, election)) {
+      return false;
+    }
+
+    return true;
+  });
+  const selectedElectionEligibilityReason = selectedElection?.onChainEligible === false
+    ? "Your current on-chain ward profile does not match this election. Please contact the administrator to update your ward assignment."
+    : getVoterEligibilityReason(voterProfile, selectedElection);
   const isVotingActive = electionState === 1 && currentTime >= startTime && currentTime <= endTime;
 
   return (
@@ -466,6 +575,27 @@ function Vote() {
         </div>
       </div>
 
+      {account && isWhitelisted && (
+        <div className="theme-panel mb-8 rounded-2xl border border-[var(--border-soft)] p-5 md:p-6">
+          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Verified voter profile</p>
+              <h2 className="mt-2 text-xl font-bold text-white">{voterProfile.fullName || "Profile on file"}</h2>
+              <p className="mt-2 text-sm theme-text-muted">
+                {voterProfile.district && voterProfile.localBody && voterProfile.wardNumber
+                  ? `${voterProfile.district} / ${voterProfile.localBody} / Ward ${voterProfile.wardNumber}`
+                  : "Ward details are missing from your profile. Contact the administrator before joining ward-based elections."}
+              </p>
+            </div>
+            {voterProfile.idReferenceMasked && (
+              <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-slate-300">
+                ID Ref: {voterProfile.idReferenceMasked}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
       {!account ? (
         <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl text-center backdrop-blur-sm max-w-lg mx-auto">
            <svg className="w-16 h-16 text-indigo-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
@@ -480,14 +610,77 @@ function Vote() {
       ) : !selectedElectionId ? (
         <div className="space-y-8">
            <div className="grid gap-6">
-             <h2 className="text-2xl font-bold text-center mb-4">Select an Active Election</h2>
-             {allElections.length === 0 ? (
+             <div className="theme-panel rounded-2xl border border-[var(--border-soft)] p-5 md:p-6">
+               <div className="flex flex-col gap-4">
+                 <div>
+                   <h2 className="text-2xl font-bold text-center mb-2">Select an Active Election</h2>
+                   <p className="text-center text-sm theme-text-muted">
+                     Choose a general election or switch to ward-based search for panchayat and municipal ballots.
+                   </p>
+                 </div>
+
+                 <div className="flex flex-wrap justify-center gap-3">
+                   <button
+                     type="button"
+                     onClick={() => setElectionAccessMode("all")}
+                     className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${electionAccessMode === "all" ? "bg-indigo-600 text-white" : "bg-slate-800/70 text-slate-300"}`}
+                   >
+                     All Elections
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setElectionAccessMode("global")}
+                     className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${electionAccessMode === "global" ? "bg-indigo-600 text-white" : "bg-slate-800/70 text-slate-300"}`}
+                   >
+                     General
+                   </button>
+                   <button
+                     type="button"
+                     onClick={() => setElectionAccessMode("ward_based")}
+                     className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${electionAccessMode === "ward_based" ? "bg-indigo-600 text-white" : "bg-slate-800/70 text-slate-300"}`}
+                   >
+                     Ward Based
+                   </button>
+                 </div>
+
+                 {electionAccessMode === "ward_based" && (
+                   <div className="grid gap-4 md:grid-cols-3">
+                     <input
+                       type="text"
+                       placeholder="District"
+                       className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                       value={districtFilter}
+                       onChange={(e) => setDistrictFilter(e.target.value)}
+                     />
+                     <input
+                       type="text"
+                       placeholder="Local body / village"
+                       className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                       value={localBodyFilter}
+                       onChange={(e) => setLocalBodyFilter(e.target.value)}
+                     />
+                     <input
+                       type="text"
+                       placeholder="Ward number"
+                       className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                       value={wardSearch}
+                       onChange={(e) => setWardSearch(e.target.value)}
+                     />
+                   </div>
+                 )}
+               </div>
+             </div>
+             {filteredElections.length === 0 ? (
                <div className="bg-slate-800/50 border border-slate-700 p-12 rounded-2xl text-center backdrop-blur-sm">
-                 <p className="text-slate-400">There are no active elections at the moment.</p>
+                 <p className="text-slate-400">
+                   {allElections.length === 0
+                     ? "There are no active elections at the moment."
+                     : "No active elections match the selected election type or ward search."}
+                 </p>
                </div>
              ) : (
                <div className="grid sm:grid-cols-2 gap-6">
-                 {allElections.map(e => (
+                 {filteredElections.map(e => (
                    <button 
                      key={e.id}
                      onClick={() => selectElection(e)}
@@ -500,6 +693,21 @@ function Vote() {
                        </div>
                      </div>
                      <h3 className="text-xl font-bold mb-2 group-hover:text-indigo-300 transition-colors">{e.title}</h3>
+                     <div className="mb-2 flex flex-wrap gap-2">
+                       <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${e.metadata?.electionType === "ward_based" ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20" : "bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"}`}>
+                         {e.metadata?.electionType === "ward_based" ? "Ward Based" : "General"}
+                       </span>
+                       {e.metadata?.wardNumber && (
+                         <span className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] bg-slate-700 text-slate-300 border border-slate-600">
+                           Ward {e.metadata.wardNumber}
+                         </span>
+                       )}
+                     </div>
+                     {e.metadata?.electionType === "ward_based" && (
+                       <p className="text-slate-400 text-sm mb-2">
+                         {e.metadata.district} / {e.metadata.localBody}
+                       </p>
+                     )}
                      <p className="text-slate-400 text-sm">Closes: {new Date(e.endTime * 1000).toLocaleString()}</p>
                    </button>
                  ))}
@@ -508,7 +716,12 @@ function Vote() {
            </div>
         </div>
       ) : (
-        <div className="space-y-8">
+           <div className="space-y-8">
+          {selectedElectionEligibilityReason && (
+            <div className="rounded-2xl border border-red-500/30 bg-red-900/20 p-5 text-center text-red-200">
+              {selectedElectionEligibilityReason}
+            </div>
+          )}
           
           <div className="flex items-center gap-4">
             <button 
@@ -519,7 +732,14 @@ function Vote() {
                 Back to Elections
             </button>
             <div className="h-4 w-px bg-slate-700"></div>
-            <h2 className="text-xl font-bold text-indigo-400 tracking-tight">{selectedElectionTitle}</h2>
+            <div>
+              <h2 className="text-xl font-bold text-indigo-400 tracking-tight">{selectedElectionTitle}</h2>
+              {selectedElection?.metadata?.electionType === "ward_based" && (
+                <p className="mt-1 text-sm text-slate-400">
+                  {selectedElection.metadata.district} / {selectedElection.metadata.localBody} / Ward {selectedElection.metadata.wardNumber}
+                </p>
+              )}
+            </div>
           </div>
           
           {/* Election Status Banner */}

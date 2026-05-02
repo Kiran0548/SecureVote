@@ -5,6 +5,8 @@ import AnalyticsDashboard from "../components/AnalyticsDashboard";
 import * as faceapi from "@vladmandic/face-api";
 import { uploadFileToIPFS, uploadJSONToIPFS } from "../utils/pinata";
 import { exportToCSV, exportToPDF } from "../utils/exportUtils";
+import { enrichElection, fetchElectionMetadataMap, saveElectionMetadata } from "../utils/electionMetadata";
+import { fetchAllVoterProfiles, maskIdReference, saveVoterProfile } from "../utils/voterProfile";
 
 function Admin() {
   const [account, setAccount] = useState("");
@@ -35,6 +37,19 @@ function Admin() {
   const [selectedElectionId, setSelectedElectionId] = useState(null);
   const [electionTitle, setElectionTitle] = useState("");
   const [showAllElections, setShowAllElections] = useState(false);
+  const [electionType, setElectionType] = useState("global");
+  const [district, setDistrict] = useState("");
+  const [localBody, setLocalBody] = useState("");
+  const [wardNumber, setWardNumber] = useState("");
+  const [voterName, setVoterName] = useState("");
+  const [voterDistrict, setVoterDistrict] = useState("");
+  const [voterLocalBody, setVoterLocalBody] = useState("");
+  const [voterWardNumber, setVoterWardNumber] = useState("");
+  const [voterIdReference, setVoterIdReference] = useState("");
+  const [voterProfiles, setVoterProfiles] = useState([]);
+  const [profileSearch, setProfileSearch] = useState("");
+  const [editingWallet, setEditingWallet] = useState("");
+  const [editingProfile, setEditingProfile] = useState(null);
 
   useEffect(() => {
     init();
@@ -118,6 +133,9 @@ function Admin() {
     if (!sc) return;
 
     try {
+      const metadataMap = await fetchElectionMetadataMap();
+      const savedProfiles = await fetchAllVoterProfiles().catch(() => []);
+      setVoterProfiles(savedProfiles);
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (accounts.length === 0) return;
 
@@ -131,13 +149,13 @@ function Admin() {
       for (let i = 1; i <= Number(count); i++) {
         try {
           const e = await sc.elections(i);
-          electionsArr.push({
+          electionsArr.push(enrichElection({
             id: Number(e.id),
             title: e.title,
             state: Number(e.state),
             startTime: Number(e.startTime),
             endTime: Number(e.endTime)
-          });
+          }, metadataMap));
         } catch (err) {
           console.warn(`Failed to load election #${i}:`, err);
         }
@@ -221,20 +239,50 @@ function Admin() {
     e.preventDefault();
     const sc = await ensureContract();
     if (!sc || !whitelistAddress) return;
+    if (!voterName.trim() || !voterDistrict.trim() || !voterLocalBody.trim() || !voterWardNumber.trim()) {
+      alert("Please enter the voter's name, district, local body, and ward before approving.");
+      return;
+    }
     try {
       setLoading(true);
-      const tx = await sc.addToWhitelist(whitelistAddress);
-      alert("Whitelist transaction submitted to MetaMask! Wait a few seconds for it to confirm.");
+      try {
+        const tx = await sc.approveVoter(
+          whitelistAddress,
+          voterDistrict.trim(),
+          voterLocalBody.trim(),
+          voterWardNumber.trim()
+        );
+        await tx.wait();
+      } catch (contractError) {
+        console.warn("approveVoter unavailable, falling back to legacy whitelist:", contractError);
+        const tx = await sc.addToWhitelist(whitelistAddress);
+        await tx.wait();
+      }
+
+      await saveVoterProfile({
+        walletAddress: whitelistAddress,
+        fullName: voterName,
+        district: voterDistrict,
+        localBody: voterLocalBody,
+        wardNumber: voterWardNumber,
+        idReferenceMasked: maskIdReference(voterIdReference),
+      });
       
       // Save face descriptor to localStorage for FaceAuth
       if (descriptor) {
          localStorage.setItem(`face_${whitelistAddress.toLowerCase()}`, JSON.stringify(Array.from(descriptor)));
       }
       
-      alert("Address successfully whitelisted!");
+      alert("Address successfully whitelisted and voter profile saved.");
       setWhitelistAddress("");
+      setVoterName("");
+      setVoterDistrict("");
+      setVoterLocalBody("");
+      setVoterWardNumber("");
+      setVoterIdReference("");
       setPhoto(null);
       setDescriptor(null);
+      setVoterProfiles(await fetchAllVoterProfiles().catch(() => []));
     } catch (err) {
       console.error(err);
       alert("Error: " + (err.reason || err.message));
@@ -258,11 +306,73 @@ function Admin() {
     setCandidates(newCandidates);
   };
 
+  const startProfileEdit = (profile) => {
+    setEditingWallet(profile.walletAddress);
+    setEditingProfile({ ...profile });
+  };
+
+  const cancelProfileEdit = () => {
+    setEditingWallet("");
+    setEditingProfile(null);
+  };
+
+  const handleEditingProfileChange = (field, value) => {
+    setEditingProfile((current) => ({
+      ...(current || {}),
+      [field]: value,
+    }));
+  };
+
+  const handleSaveProfileEdit = async () => {
+    if (!editingProfile?.walletAddress) return;
+    if (!editingProfile.fullName.trim() || !editingProfile.district.trim() || !editingProfile.localBody.trim() || !editingProfile.wardNumber.trim()) {
+      alert("Please complete the voter profile before saving.");
+      return;
+    }
+
+    const sc = await ensureContract();
+
+    try {
+      setLoading(true);
+      await saveVoterProfile({
+        ...editingProfile,
+        idReferenceMasked: maskIdReference(editingProfile.idReferenceMasked),
+      });
+
+      if (sc) {
+        try {
+          const tx = await sc.setVoterProfile(
+            editingProfile.walletAddress,
+            editingProfile.district.trim(),
+            editingProfile.localBody.trim(),
+            editingProfile.wardNumber.trim()
+          );
+          await tx.wait();
+        } catch (contractError) {
+          console.warn("setVoterProfile unavailable on current deployment:", contractError);
+        }
+      }
+
+      setVoterProfiles(await fetchAllVoterProfiles().catch(() => []));
+      cancelProfileEdit();
+      alert("Voter profile updated successfully.");
+    } catch (err) {
+      console.error(err);
+      alert("Unable to save voter profile: " + (err.reason || err.message));
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreateElection = async (e) => {
     e.preventDefault();
     const sc = await ensureContract();
     const validCandidates = candidates.filter(c => c.name.trim() !== "");
     if (!sc || !electionTitle || validCandidates.length === 0 || !startTime || !endTime) return;
+    if (electionType === "ward_based" && (!district.trim() || !localBody.trim() || !wardNumber.trim())) {
+      alert("Please enter district, local body, and ward number for a ward-based election.");
+      return;
+    }
     
     try {
       setLoading(true);
@@ -310,15 +420,68 @@ function Admin() {
         return;
       }
 
-      const tx = await sc.createElection(
-         electionTitle.trim(), namesArray, logosArray, manifestosArray, videosArray, startTimestamp, endTimestamp
-      );
+      let tx;
+      try {
+        tx = await sc.createElectionWithMetadata(
+          electionTitle.trim(),
+          namesArray,
+          logosArray,
+          manifestosArray,
+          videosArray,
+          startTimestamp,
+          endTimestamp,
+          electionType === "ward_based" ? 1 : 0,
+          district.trim(),
+          localBody.trim(),
+          wardNumber.trim()
+        );
+      } catch (contractError) {
+        console.warn("createElectionWithMetadata unavailable, falling back to legacy createElection:", contractError);
+        tx = await sc.createElection(
+          electionTitle.trim(),
+          namesArray,
+          logosArray,
+          manifestosArray,
+          videosArray,
+          startTimestamp,
+          endTimestamp
+        );
+      }
+      const receipt = await tx.wait();
+      let createdElectionId = null;
+
+      for (const log of receipt.logs) {
+        try {
+          const parsedLog = sc.interface.parseLog(log);
+          if (parsedLog?.name === "ElectionCreated") {
+            createdElectionId = Number(parsedLog.args.electionId);
+            break;
+          }
+        } catch {
+          // Ignore unrelated logs
+        }
+      }
+
+      if (createdElectionId == null) {
+        throw new Error("Election was created on-chain, but the new election ID could not be resolved.");
+      }
+
+      await saveElectionMetadata(createdElectionId, {
+        electionType,
+        district,
+        localBody,
+        wardNumber,
+      });
       
-      alert("Election creation transaction sent! It will appear in the list once confirmed.");
+      alert(`Election created successfully as ID ${createdElectionId}.`);
       setElectionTitle("");
       setCandidates([{ name: "", logoUrl: "", logoFile: null, manifesto: "", videoFile: null }]);
       setStartTime("");
       setEndTime("");
+      setElectionType("global");
+      setDistrict("");
+      setLocalBody("");
+      setWardNumber("");
       
       init();
     } catch (err) {
@@ -353,6 +516,20 @@ function Admin() {
 
   const sortedElections = allElections.slice().sort((a, b) => b.id - a.id);
   const visibleElections = showAllElections ? sortedElections : sortedElections.slice(0, 3);
+  const filteredProfiles = voterProfiles
+    .slice()
+    .sort((a, b) => a.fullName.localeCompare(b.fullName))
+    .filter((profile) => {
+      if (!profileSearch.trim()) return true;
+      const query = profileSearch.trim().toLowerCase();
+      return (
+        profile.fullName.toLowerCase().includes(query) ||
+        profile.walletAddress.toLowerCase().includes(query) ||
+        profile.district.toLowerCase().includes(query) ||
+        profile.localBody.toLowerCase().includes(query) ||
+        profile.wardNumber.toLowerCase().includes(query)
+      );
+    });
 
   const handleExport = async (type) => {
     const sc = await ensureContract();
@@ -503,9 +680,17 @@ function Admin() {
                           <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${e.state === 1 ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-slate-700 text-slate-300 border border-slate-600"}`}>
                             {e.state === 1 ? "Ongoing" : "Ended"}
                           </span>
+                          <span className={`text-[10px] px-2.5 py-1 rounded-full font-bold uppercase tracking-wider ${e.metadata?.electionType === "ward_based" ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20" : "bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"}`}>
+                            {e.metadata?.electionType === "ward_based" ? "Ward Based" : "General"}
+                          </span>
                         </div>
                         <h4 className="text-xl font-bold tracking-tight text-white">{e.title}</h4>
                         <p className="mt-1 text-sm text-slate-400">Ends: {new Date(e.endTime * 1000).toLocaleString()}</p>
+                        {e.metadata?.electionType === "ward_based" && (
+                          <p className="mt-2 text-xs text-slate-400">
+                            {e.metadata.district} / {e.metadata.localBody} / Ward {e.metadata.wardNumber}
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-wrap gap-2 md:justify-end">
                         {e.state === 1 && (
@@ -558,6 +743,66 @@ function Admin() {
                   />
                 </div>
                 <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Voter Full Name</label>
+                  <input
+                    type="text"
+                    placeholder="Enter voter name"
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    value={voterName}
+                    onChange={(e) => setVoterName(e.target.value)}
+                    disabled={loading}
+                  />
+                </div>
+                <div className="grid gap-4 md:grid-cols-3">
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">District</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Jaipur"
+                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                      value={voterDistrict}
+                      onChange={(e) => setVoterDistrict(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Local Body / Panchayat</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Gram Panchayat North"
+                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                      value={voterLocalBody}
+                      onChange={(e) => setVoterLocalBody(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">Ward Number</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. 12"
+                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                      value={voterWardNumber}
+                      onChange={(e) => setVoterWardNumber(e.target.value)}
+                      disabled={loading}
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Voter ID / Aadhaar Reference</label>
+                  <input
+                    type="text"
+                    placeholder="Enter masked value like XXXX1234"
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    value={voterIdReference}
+                    onChange={(e) => setVoterIdReference(e.target.value)}
+                    disabled={loading}
+                  />
+                  <p className="mt-2 text-xs text-slate-500">
+                    Only a masked reference is stored in the backend. Do not enter a full Aadhaar number here.
+                  </p>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Voter Photo (Identity Verification)</label>
                   {!modelsLoaded ? (
                      <p className="text-sm text-yellow-500">Loading AI Models...</p>
@@ -598,6 +843,125 @@ function Admin() {
               </form>
             </div>
 
+            <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl backdrop-blur-sm shadow-xl">
+              <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-semibold text-white">Saved Voter Profiles</h2>
+                  <p className="mt-1 text-sm text-slate-400">View and edit stored ward assignments and masked ID references.</p>
+                </div>
+                <input
+                  type="text"
+                  placeholder="Search name, wallet, district..."
+                  className="w-full md:max-w-xs bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                  value={profileSearch}
+                  onChange={(e) => setProfileSearch(e.target.value)}
+                />
+              </div>
+
+              <div className="mt-6 space-y-4">
+                {filteredProfiles.length === 0 ? (
+                  <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-5 text-sm text-slate-400">
+                    No voter profiles found for the current search.
+                  </div>
+                ) : (
+                  filteredProfiles.map((profile) => {
+                    const isEditing = editingWallet === profile.walletAddress && editingProfile;
+                    const currentProfile = isEditing ? editingProfile : profile;
+
+                    return (
+                      <div key={profile.walletAddress} className="rounded-2xl border border-slate-700 bg-slate-900/40 p-5">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <h3 className="text-lg font-semibold text-white">{currentProfile.fullName || "Unnamed voter"}</h3>
+                            <p className="mt-1 font-mono text-xs text-slate-400">{profile.walletAddress}</p>
+                          </div>
+                          <div className="flex gap-2">
+                            {isEditing ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={handleSaveProfileEdit}
+                                  disabled={loading}
+                                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+                                >
+                                  Save
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={cancelProfileEdit}
+                                  disabled={loading}
+                                  className="rounded-xl border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-semibold text-slate-300 transition-colors hover:bg-slate-700 disabled:opacity-50"
+                                >
+                                  Cancel
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => startProfileEdit(profile)}
+                                className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500/20"
+                              >
+                                Edit Profile
+                              </button>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Full Name</label>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                className="w-full bg-slate-950/70 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                                value={currentProfile.fullName}
+                                onChange={(e) => handleEditingProfileChange("fullName", e.target.value)}
+                              />
+                            ) : (
+                              <p className="text-sm text-slate-200">{currentProfile.fullName || "Not set"}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Masked ID Reference</label>
+                            {isEditing ? (
+                              <input
+                                type="text"
+                                className="w-full bg-slate-950/70 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                                value={currentProfile.idReferenceMasked}
+                                onChange={(e) => handleEditingProfileChange("idReferenceMasked", e.target.value)}
+                              />
+                            ) : (
+                              <p className="text-sm text-slate-200">{currentProfile.idReferenceMasked || "Not set"}</p>
+                            )}
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-3">
+                          {["district", "localBody", "wardNumber"].map((field) => (
+                            <div key={field}>
+                              <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                {field === "localBody" ? "Local Body / Panchayat" : field === "wardNumber" ? "Ward Number" : "District"}
+                              </label>
+                              {isEditing ? (
+                                <input
+                                  type="text"
+                                  className="w-full bg-slate-950/70 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                                  value={currentProfile[field]}
+                                  onChange={(e) => handleEditingProfileChange(field, e.target.value)}
+                                />
+                              ) : (
+                                <p className="text-sm text-slate-200">{currentProfile[field] || "Not set"}</p>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+
              {/* Election Creation Form */}
               <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl backdrop-blur-sm shadow-xl">
                 <h2 className="text-2xl font-semibold mb-6 flex items-center gap-2">
@@ -616,6 +980,62 @@ function Admin() {
                       disabled={loading}
                     />
                   </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Election Type</label>
+                      <select
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
+                        value={electionType}
+                        onChange={(e) => setElectionType(e.target.value)}
+                        disabled={loading}
+                      >
+                        <option value="global">General / Large Election</option>
+                        <option value="ward_based">Ward-Based Local Election</option>
+                      </select>
+                    </div>
+                    <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-slate-400">
+                      {electionType === "global"
+                        ? "All approved voters can access the same ballot."
+                        : "Only voters from the selected district, local body, and ward should use this ballot."}
+                    </div>
+                  </div>
+                  {electionType === "ward_based" && (
+                    <div className="grid gap-4 md:grid-cols-3">
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">District</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Jaipur"
+                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
+                          value={district}
+                          onChange={(e) => setDistrict(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Local Body / Village</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. Gram Panchayat North"
+                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
+                          value={localBody}
+                          onChange={(e) => setLocalBody(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Ward Number</label>
+                        <input
+                          type="text"
+                          placeholder="e.g. 12"
+                          className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
+                          value={wardNumber}
+                          onChange={(e) => setWardNumber(e.target.value)}
+                          disabled={loading}
+                        />
+                      </div>
+                    </div>
+                  )}
                   <div className="bg-slate-900/50 border border-slate-700 p-4 rounded-xl mb-6">
                     <label className="block text-sm font-medium text-slate-300 mb-2">Pinata API JWT (Required for IPFS Uploads)</label>
                     <input
@@ -720,7 +1140,13 @@ function Admin() {
                   </div>
                   <button
                     type="submit"
-                    disabled={loading || candidates.filter(c => c.name.trim() !== "").length === 0 || !startTime || !endTime}
+                    disabled={
+                      loading ||
+                      candidates.filter(c => c.name.trim() !== "").length === 0 ||
+                      !startTime ||
+                      !endTime ||
+                      (electionType === "ward_based" && (!district.trim() || !localBody.trim() || !wardNumber.trim()))
+                    }
                     className="w-full bg-purple-600 hover:bg-purple-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors mt-6"
                   >
                     {loading ? "Processing..." : "Start Election"}
