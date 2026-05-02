@@ -35,6 +35,7 @@ function Vote() {
   const [hasRegisteredIdentity, setHasRegisteredIdentity] = useState(false);
   const [electionCount, setElectionCount] = useState(0);
   const [identityString, setIdentityString] = useState(localStorage.getItem("semaphoreIdentity") || "");
+  const [isSpeaking, setIsSpeaking] = useState(false);
 
   useEffect(() => {
     init();
@@ -54,6 +55,14 @@ function Vote() {
       if (window.ethereum) {
         window.ethereum.removeListener("accountsChanged", init);
         window.ethereum.removeListener("chainChanged", handleChainChanged);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (typeof window !== "undefined" && "speechSynthesis" in window) {
+        window.speechSynthesis.cancel();
       }
     };
   }, []);
@@ -160,6 +169,76 @@ function Vote() {
     setStartTime(election.startTime);
     setEndTime(election.endTime);
     fetchCandidates(contract, election.id);
+  };
+
+  const speechSupported = typeof window !== "undefined" && "speechSynthesis" in window;
+
+  const getInstructionText = () => {
+    if (!account) {
+      return "Please connect your Web3 wallet first to continue to the voting process.";
+    }
+
+    if (!isWhitelisted) {
+      return "Your wallet is not approved for this election yet. Please contact the election administrator for help.";
+    }
+
+    if (!selectedElectionId) {
+      if (allElections.length === 0) {
+        return "There are no active elections right now. Please come back later or contact the administrator.";
+      }
+
+      return "Please choose an active election from the list. After selecting it, you can continue with identity verification and voting.";
+    }
+
+    if (electionState === 0) {
+      return `The election ${selectedElectionTitle} has not been initialized yet. Please wait for the administrator.`;
+    }
+
+    if (electionState === 2) {
+      return `The election ${selectedElectionTitle} has already ended. Please check the results dashboard.`;
+    }
+
+    if (!isVotingActive && currentTime < startTime) {
+      return `The election ${selectedElectionTitle} has not started yet. Please return when the voting time begins.`;
+    }
+
+    if (!isVotingActive && currentTime > endTime) {
+      return `Voting for ${selectedElectionTitle} has ended. Please wait for the final result publication.`;
+    }
+
+    if (!biometricsVerified) {
+      return `Step 1. Complete biometric verification by looking directly at the camera until your identity is confirmed.`;
+    }
+
+    if (!hasRegisteredIdentity) {
+      return "Step 2. Generate your anonymous identity. This keeps your vote private while proving you are an approved voter.";
+    }
+
+    return `Step 3. Review the candidates for ${selectedElectionTitle}, open the candidate profile you prefer, and cast your vote securely.`;
+  };
+
+  const speakInstructions = () => {
+    if (!speechSupported) {
+      alert("Text-to-speech is not supported in this browser.");
+      return;
+    }
+
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(getInstructionText());
+    utterance.rate = 0.95;
+    utterance.pitch = 1;
+    utterance.onend = () => setIsSpeaking(false);
+    utterance.onerror = () => setIsSpeaking(false);
+
+    setIsSpeaking(true);
+    window.speechSynthesis.speak(utterance);
+  };
+
+  const stopSpeaking = () => {
+    if (!speechSupported) return;
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
   };
 
   const openModal = async (candidate, idx) => {
@@ -345,6 +424,46 @@ function Vote() {
         </div>
         <h1 className="app-title mb-4 text-4xl font-bold md:text-5xl">Election Booth</h1>
         <p className="text-slate-400">Cast your vote securely on the blockchain.</p>
+      </div>
+
+      <div className="theme-panel mb-8 rounded-2xl border border-[var(--border-soft)] p-5 md:p-6">
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div className="space-y-2">
+            <div className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-soft)] px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] theme-accent">
+              Accessibility Assist
+            </div>
+            <h2 className="text-xl font-bold">Voice guidance for low-vision voters</h2>
+            <p className="theme-text-muted">
+              Tap play to hear the current voting instructions aloud based on your progress in the booth.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <button
+              type="button"
+              onClick={speakInstructions}
+              disabled={!speechSupported}
+              className="theme-primary-btn rounded-xl px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isSpeaking ? "Replay Instructions" : "Read Instructions Aloud"}
+            </button>
+            <button
+              type="button"
+              onClick={stopSpeaking}
+              disabled={!speechSupported || !isSpeaking}
+              className="theme-secondary-btn rounded-xl px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Stop Audio
+            </button>
+          </div>
+        </div>
+
+        <div className="mt-4 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-3)] px-4 py-4">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Current spoken guidance</p>
+          <p className="mt-2 text-sm leading-7 theme-text-muted" aria-live="polite">
+            {getInstructionText()}
+          </p>
+        </div>
       </div>
 
       {!account ? (

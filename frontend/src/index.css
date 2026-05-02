@@ -10,6 +10,7 @@
 
 html {
   scroll-behavior: smooth;
+  overflow-x: clip;
 }
 
 body {
@@ -19,6 +20,7 @@ body {
   background: var(--app-bg);
   color: var(--text-main);
   transition: background 260ms ease, color 260ms ease;
+  overflow-x: hidden;
 }
 
 #root {
@@ -519,5 +521,27 @@ body {
   .theme-root *::after {
     animation: none !important;
     transition: none !important;
+  }
+}
+
+@media (max-width: 640px) {
+  .hero-stage {
+    padding-bottom: 3.5rem;
+  }
+
+  .ballot-seal {
+    right: auto;
+    left: 50%;
+    bottom: -1.5rem;
+    transform: translateX(-50%);
+  }
+
+  @keyframes driftSeal {
+    0%, 100% {
+      transform: translateX(-50%) translateY(0) rotate(0deg);
+    }
+    50% {
+      transform: translateX(-50%) translateY(-6px) rotate(-2deg);
+    }
   }
 }
