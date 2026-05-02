@@ -32,4 +32,9 @@ public class VoterProfileController {
         profile.setWalletAddress(profile.getWalletAddress().toLowerCase());
         return voterProfileRepository.save(profile);
     }
+
+    @DeleteMapping("/{walletAddress}")
+    public void deleteProfile(@PathVariable String walletAddress) {
+        voterProfileRepository.deleteById(walletAddress.toLowerCase());
+    }
 }

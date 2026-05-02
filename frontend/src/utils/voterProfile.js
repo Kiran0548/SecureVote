@@ -80,6 +80,19 @@ export async function fetchAllVoterProfiles() {
   return profiles.map(normalizeVoterProfile);
 }
 
+export async function deleteVoterProfile(walletAddress) {
+  if (!walletAddress) return false;
+  
+  const response = await fetch(`${API_BASE_URL}/api/voters/profile/${walletAddress.toLowerCase()}`, {
+    method: "DELETE",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Unable to delete voter profile [${response.status}]`);
+  }
+  return true;
+}
+
 function sameText(left = "", right = "") {
   return left.trim().toLowerCase() === right.trim().toLowerCase();
 }

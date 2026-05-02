@@ -6,7 +6,7 @@ import * as faceapi from "@vladmandic/face-api";
 import { uploadFileToIPFS, uploadJSONToIPFS } from "../utils/pinata";
 import { exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { enrichElection, fetchElectionMetadataMap, saveElectionMetadata } from "../utils/electionMetadata";
-import { fetchAllVoterProfiles, maskIdReference, saveVoterProfile } from "../utils/voterProfile";
+import { fetchAllVoterProfiles, maskIdReference, saveVoterProfile, deleteVoterProfile } from "../utils/voterProfile";
 
 function Admin() {
   const [account, setAccount] = useState("");
@@ -314,6 +314,21 @@ function Admin() {
   const cancelProfileEdit = () => {
     setEditingWallet("");
     setEditingProfile(null);
+  };
+
+  const handleDeleteProfile = async (walletAddress) => {
+    if (!window.confirm("Are you sure you want to delete this profile?")) return;
+    try {
+      setLoading(true);
+      await deleteVoterProfile(walletAddress);
+      setVoterProfiles((prev) => prev.filter((p) => p.walletAddress.toLowerCase() !== walletAddress.toLowerCase()));
+      alert("Profile deleted successfully.");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to delete profile: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleEditingProfileChange = (field, value) => {
@@ -896,13 +911,23 @@ function Admin() {
                                 </button>
                               </>
                             ) : (
-                              <button
-                                type="button"
-                                onClick={() => startProfileEdit(profile)}
-                                className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500/20"
-                              >
-                                Edit Profile
-                              </button>
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => startProfileEdit(profile)}
+                                  className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500/20"
+                                >
+                                  Edit Profile
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteProfile(profile.walletAddress)}
+                                  disabled={loading}
+                                  className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-400 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                                >
+                                  Delete Profile
+                                </button>
+                              </>
                             )}
                           </div>
                         </div>

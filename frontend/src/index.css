@@ -10,7 +10,6 @@
 
 html {
   scroll-behavior: smooth;
-  overflow-x: clip;
 }
 
 body {
@@ -52,7 +51,6 @@ body {
   background: var(--app-bg);
   color: var(--text-main);
   position: relative;
-  overflow-x: hidden;
 }
 
 .theme-light {
