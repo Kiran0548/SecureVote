@@ -7,6 +7,7 @@ import { uploadFileToIPFS, uploadJSONToIPFS } from "../utils/pinata";
 import { exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { enrichElection, fetchElectionMetadataMap, saveElectionMetadata } from "../utils/electionMetadata";
 import { fetchAllVoterProfiles, maskIdReference, saveVoterProfile, deleteVoterProfile } from "../utils/voterProfile";
+import { fetchVoterApplications, reviewVoterApplication } from "../utils/voterApplications";
 import { useLanguage } from "../utils/i18n";
 
 function getDefaultDateTimeValue(offsetMinutes = 0) {
@@ -54,7 +55,9 @@ function Admin() {
   const [voterWardNumber, setVoterWardNumber] = useState("");
   const [voterIdReference, setVoterIdReference] = useState("");
   const [voterProfiles, setVoterProfiles] = useState([]);
+  const [voterApplications, setVoterApplications] = useState([]);
   const [profileSearch, setProfileSearch] = useState("");
+  const [applicationSearch, setApplicationSearch] = useState("");
   const [editingWallet, setEditingWallet] = useState("");
   const [editingProfile, setEditingProfile] = useState(null);
   const { t } = useLanguage();
@@ -143,7 +146,9 @@ function Admin() {
     try {
       const metadataMap = await fetchElectionMetadataMap();
       const savedProfiles = await fetchAllVoterProfiles().catch(() => []);
+      const savedApplications = await fetchVoterApplications().catch(() => []);
       setVoterProfiles(savedProfiles);
+      setVoterApplications(savedApplications);
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
       if (accounts.length === 0) return;
 
@@ -334,6 +339,50 @@ function Admin() {
     } catch (err) {
       console.error(err);
       alert("Failed to delete profile: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const loadApplications = async () => {
+    setVoterApplications(await fetchVoterApplications().catch(() => []));
+  };
+
+  const autofillWhitelistFromApplication = (application) => {
+    setWhitelistAddress(application.walletAddress || "");
+    setVoterName(application.fullName || "");
+    setVoterDistrict(application.district || "");
+    setVoterLocalBody(application.localBody || "");
+    setVoterWardNumber(application.wardNumber || "");
+    setVoterIdReference(application.idReferenceMasked || "");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  const handleReviewApplication = async (application, decision) => {
+    const note = window.prompt(
+      decision === "approve"
+        ? "Optional approval note:"
+        : "Optional rejection note:",
+      ""
+    );
+
+    if (note === null) return;
+
+    try {
+      setLoading(true);
+      const reviewed = await reviewVoterApplication(application.id, decision, note);
+      await loadApplications();
+      setVoterProfiles(await fetchAllVoterProfiles().catch(() => []));
+
+      if (decision === "approve") {
+        autofillWhitelistFromApplication(reviewed);
+        alert("Application approved. The voter profile has been created and the whitelist form is prefilled for the on-chain approval step.");
+      } else {
+        alert("Application rejected.");
+      }
+    } catch (error) {
+      console.error(error);
+      alert(`Unable to ${decision} application: ` + error.message);
     } finally {
       setLoading(false);
     }
@@ -551,6 +600,21 @@ function Admin() {
         profile.district.toLowerCase().includes(query) ||
         profile.localBody.toLowerCase().includes(query) ||
         profile.wardNumber.toLowerCase().includes(query)
+      );
+    });
+
+  const filteredApplications = voterApplications
+    .slice()
+    .filter((application) => {
+      if (!applicationSearch.trim()) return true;
+      const query = applicationSearch.trim().toLowerCase();
+      return (
+        application.fullName.toLowerCase().includes(query) ||
+        application.walletAddress.toLowerCase().includes(query) ||
+        application.district.toLowerCase().includes(query) ||
+        application.localBody.toLowerCase().includes(query) ||
+        application.wardNumber.toLowerCase().includes(query) ||
+        application.status.toLowerCase().includes(query)
       );
     });
 
@@ -866,6 +930,92 @@ function Admin() {
               </form>
             </div>
 
+            <div className="space-y-8">
+              <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl backdrop-blur-sm shadow-xl">
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                  <div>
+                    <h2 className="text-2xl font-semibold text-white">Voter Applications</h2>
+                    <p className="mt-1 text-sm text-slate-400">Review self-service requests and create backend voter profiles on approval.</p>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="Search wallet, district, status..."
+                    className="w-full md:max-w-xs bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    value={applicationSearch}
+                    onChange={(e) => setApplicationSearch(e.target.value)}
+                  />
+                </div>
+
+                <div className="mt-6 space-y-4">
+                  {filteredApplications.length === 0 ? (
+                    <div className="rounded-xl border border-slate-700 bg-slate-900/40 p-5 text-sm text-slate-400">
+                      No voter applications found yet.
+                    </div>
+                  ) : (
+                    filteredApplications.map((application) => (
+                      <div key={application.id} className="rounded-2xl border border-slate-700 bg-slate-900/40 p-5">
+                        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                          <div>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h3 className="text-lg font-semibold text-white">{application.fullName}</h3>
+                              <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
+                                application.status === "PENDING"
+                                  ? "bg-amber-500/10 text-amber-300 border border-amber-500/20"
+                                  : application.status === "APPROVED"
+                                    ? "bg-emerald-500/10 text-emerald-300 border border-emerald-500/20"
+                                    : "bg-red-500/10 text-red-300 border border-red-500/20"
+                              }`}>
+                                {application.status}
+                              </span>
+                            </div>
+                            <p className="mt-1 font-mono text-xs text-slate-400">{application.walletAddress}</p>
+                            <p className="mt-2 text-sm text-slate-300">{application.district} / {application.localBody} / Ward {application.wardNumber}</p>
+                            <p className="mt-1 text-sm text-slate-400">Masked ID: {application.idReferenceMasked || "Not provided"}</p>
+                            <p className="mt-1 text-sm text-slate-400">Proof Ref: {application.idProofPath || "Not provided"}</p>
+                            <p className="mt-1 text-xs text-slate-500">
+                              Submitted: {application.submittedAt ? new Date(application.submittedAt).toLocaleString() : "Unknown"}
+                            </p>
+                            {application.reviewNote ? (
+                              <p className="mt-1 text-xs text-slate-400">Review note: {application.reviewNote}</p>
+                            ) : null}
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <button
+                              type="button"
+                              onClick={() => autofillWhitelistFromApplication(application)}
+                              className="rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-4 py-2 text-sm font-semibold text-indigo-300 transition-colors hover:bg-indigo-500/20"
+                            >
+                              Prefill Whitelist
+                            </button>
+                            {application.status === "PENDING" ? (
+                              <>
+                                <button
+                                  type="button"
+                                  disabled={loading}
+                                  onClick={() => handleReviewApplication(application, "approve")}
+                                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={loading}
+                                  onClick={() => handleReviewApplication(application, "reject")}
+                                  className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                                >
+                                  Reject
+                                </button>
+                              </>
+                            ) : null}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+
             <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl backdrop-blur-sm shadow-xl">
               <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
                 <div>
@@ -993,6 +1143,7 @@ function Admin() {
                   })
                 )}
               </div>
+            </div>
             </div>
 
              {/* Election Creation Form */}

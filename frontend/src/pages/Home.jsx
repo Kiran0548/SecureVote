@@ -98,6 +98,13 @@ function Home() {
             >
               {t("home.resultsButton")}
             </Link>
+
+            <Link
+              to="/register"
+              className="theme-secondary-btn inline-flex items-center justify-center rounded-2xl px-7 py-4 text-base font-semibold"
+            >
+              Register as Voter
+            </Link>
           </div>
 
           <div className="grid gap-4 pt-2 md:grid-cols-3">

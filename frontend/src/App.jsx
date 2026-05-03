@@ -9,6 +9,7 @@ const Vote = lazy(() => import("./pages/Vote"));
 const Verify = lazy(() => import("./pages/Verify"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Result = lazy(() => import("./pages/Result"));
+const Register = lazy(() => import("./pages/Register"));
 
 function AppContent() {
   const [theme, setTheme] = useState(() => localStorage.getItem("securevote-theme") || "dark");
@@ -40,6 +41,7 @@ function AppContent() {
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/results" element={<Result />} />
               <Route path="/vote" element={<Vote />} />
+              <Route path="/register" element={<Register />} />
               <Route path="/verify" element={<Verify />} />
               <Route path="/admin" element={<Admin />} />
             </Routes>

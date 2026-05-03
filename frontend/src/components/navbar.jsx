@@ -70,6 +70,9 @@ function Navbar({ theme, onToggleTheme }) {
             <Link to="/vote" className="nav-link text-sm font-semibold">
               {t("nav.vote")}
             </Link>
+            <Link to="/register" className="nav-link text-sm font-semibold">
+              Register
+            </Link>
             <Link to="/verify" className="nav-link text-sm font-semibold">
               {t("nav.verify")}
             </Link>
