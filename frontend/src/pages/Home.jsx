@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { fetchSystemInsights, topEntries } from "../utils/insights";
+import { useLanguage } from "../utils/i18n";
 
 const signalItems = [
   { label: "Anonymous", accent: "bg-emerald-500" },
@@ -10,6 +11,7 @@ const signalItems = [
 
 function Home() {
   const [insights, setInsights] = useState(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     let active = true;
@@ -27,15 +29,15 @@ function Home() {
 
   const heroStats = [
     {
-      label: "Votes Logged",
+      label: t("home.votesLogged"),
       value: insights?.voteSummary?.totalVotes ?? "0",
     },
     {
-      label: "Approved Profiles",
+      label: t("home.approvedProfiles"),
       value: insights?.profileSummary?.totalProfiles ?? "0",
     },
     {
-      label: "Election Records",
+      label: t("home.electionRecords"),
       value: insights?.metadataSummary?.totalMetadataRecords ?? "0",
     },
   ];
@@ -48,19 +50,18 @@ function Home() {
         <section className="space-y-8 animate-fade-in-up">
           <div className="hero-badge">
             <span className="inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
-            National-grade digital ballot experience
+            {t("home.badge")}
           </div>
 
           <div className="space-y-6">
             <h1 className="app-title max-w-4xl text-4xl font-bold leading-[1.02] md:text-6xl">
-              Every vote
+              {t("home.titleLead")}
               {" "}
-              <span className="theme-gradient-text">secure</span>, every result trusted.
+              <span className="theme-gradient-text">{t("home.titleAccent")}</span>{t("home.titleEnd")}
             </h1>
 
             <p className="max-w-2xl text-lg leading-8 theme-text-muted md:text-xl">
-              SecureVote turns elections into a guided digital voting room with biometric
-              verification, anonymous proofs, and audit-ready receipts that citizens can trust.
+              {t("home.subtitle")}
             </p>
           </div>
 
@@ -78,7 +79,7 @@ function Home() {
               to="/vote"
               className="theme-primary-btn inline-flex items-center justify-center gap-2 rounded-2xl px-7 py-4 text-base font-bold"
             >
-              Enter Voting Booth
+              {t("home.voteButton")}
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" />
               </svg>
@@ -88,14 +89,14 @@ function Home() {
               to="/dashboard"
               className="theme-secondary-btn inline-flex items-center justify-center rounded-2xl px-7 py-4 text-base font-semibold"
             >
-              Explore Live Dashboard
+              {t("home.dashboardButton")}
             </Link>
 
             <Link
               to="/results"
               className="theme-secondary-btn inline-flex items-center justify-center rounded-2xl px-7 py-4 text-base font-semibold"
             >
-              Open Results Explorer
+              {t("home.resultsButton")}
             </Link>
           </div>
 
@@ -183,39 +184,39 @@ function Home() {
             <div className="flex items-center justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">
-                  Readiness Snapshot
+                  SecureVote
                 </p>
-                <h2 className="mt-2 text-2xl font-extrabold">Election coverage at a glance</h2>
+                <h2 className="mt-2 text-2xl font-extrabold">{t("home.readinessTitle")}</h2>
               </div>
               <Link to="/results" className="text-sm font-semibold theme-accent">
-                View full explorer
+                {t("home.readinessLink")}
               </Link>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="theme-panel rounded-2xl p-4">
-                <p className="text-sm font-semibold theme-text-muted">Unique voters seen</p>
+                <p className="text-sm font-semibold theme-text-muted">{t("home.uniqueVoters")}</p>
                 <p className="mt-2 text-2xl font-bold">
                   {insights?.voteSummary?.uniqueVoters ?? 0}
                 </p>
                 <p className="mt-2 text-sm theme-text-soft">
-                  Based on backend vote logs available to the dashboard.
+                  {t("home.uniqueVotersHint")}
                 </p>
               </div>
 
               <div className="theme-panel rounded-2xl p-4">
-                <p className="text-sm font-semibold theme-text-muted">Ward-scoped elections</p>
+                <p className="text-sm font-semibold theme-text-muted">{t("home.wardElections")}</p>
                 <p className="mt-2 text-2xl font-bold">
                   {insights?.metadataSummary?.wardScopedElections ?? 0}
                 </p>
                 <p className="mt-2 text-sm theme-text-soft">
-                  Local ballots that use district and ward eligibility rules.
+                  {t("home.wardElectionsHint")}
                 </p>
               </div>
             </div>
 
             <div className="mt-6">
-              <p className="text-sm font-semibold theme-text-muted">Top district coverage</p>
+              <p className="text-sm font-semibold theme-text-muted">{t("home.topDistricts")}</p>
               <div className="mt-3 flex flex-wrap gap-3">
                 {leadingDistricts.length > 0 ? (
                   leadingDistricts.map(([district, count]) => (
@@ -228,7 +229,7 @@ function Home() {
                   ))
                 ) : (
                   <span className="theme-text-soft text-sm">
-                    District coverage will appear here once voter profiles are added.
+                    {t("home.topDistrictsEmpty")}
                   </span>
                 )}
               </div>

@@ -7,6 +7,7 @@ import { uploadFileToIPFS, uploadJSONToIPFS } from "../utils/pinata";
 import { exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { enrichElection, fetchElectionMetadataMap, saveElectionMetadata } from "../utils/electionMetadata";
 import { fetchAllVoterProfiles, maskIdReference, saveVoterProfile, deleteVoterProfile } from "../utils/voterProfile";
+import { useLanguage } from "../utils/i18n";
 
 function getDefaultDateTimeValue(offsetMinutes = 0) {
   const date = new Date(Date.now() + offsetMinutes * 60 * 1000);
@@ -56,6 +57,7 @@ function Admin() {
   const [profileSearch, setProfileSearch] = useState("");
   const [editingWallet, setEditingWallet] = useState("");
   const [editingProfile, setEditingProfile] = useState(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     init();
@@ -1150,7 +1152,7 @@ function Admin() {
                     </button>
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Start Time</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">{t("admin.startTime")}</label>
                     <input
                       type="datetime-local"
                       className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"
@@ -1160,7 +1162,7 @@ function Admin() {
                     />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">End Time</label>
+                    <label className="block text-sm font-medium text-slate-300 mb-2">{t("admin.endTime")}</label>
                     <input
                       type="datetime-local"
                       className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-purple-500 focus:ring-1 focus:ring-purple-500 transition-colors"

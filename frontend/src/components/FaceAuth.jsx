@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect } from "react";
 import Webcam from "react-webcam";
 import * as faceapi from "@vladmandic/face-api";
+import { useLanguage } from "../utils/i18n";
 
 const FaceAuth = ({ onVerified, account }) => {
   const webcamRef = useRef(null);
@@ -8,7 +9,12 @@ const FaceAuth = ({ onVerified, account }) => {
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
   const [matcher, setMatcher] = useState(null);
-  const [statusMsg, setStatusMsg] = useState("Please look directly at the camera to verify your identity.");
+  const { t } = useLanguage();
+  const [statusMsg, setStatusMsg] = useState("");
+
+  useEffect(() => {
+    setStatusMsg(t("faceAuth.initialStatus"));
+  }, [t]);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -30,18 +36,18 @@ const FaceAuth = ({ onVerified, account }) => {
             const faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, 0.4);
             setMatcher(faceMatcher);
           } else {
-            setError("No Face ID found for this wallet address. Please contact Admin.");
+            setError(t("faceAuth.noFaceId"));
           }
         }
         
         setModelsLoaded(true);
       } catch (err) {
         console.error("Error loading face models:", err);
-        setError("Failed to load facial recognition models.");
+        setError(t("faceAuth.modelLoadError"));
       }
     };
     loadModels();
-  }, [account]);
+  }, [account, t]);
 
   const detectFace = async () => {
     if (!webcamRef.current || !webcamRef.current.video || !modelsLoaded || !matcher) {
@@ -61,15 +67,15 @@ const FaceAuth = ({ onVerified, account }) => {
       if (detections) {
         const bestMatch = matcher.findBestMatch(detections.descriptor);
         if (bestMatch.label !== 'unknown') {
-          setStatusMsg("Identity Verified! Unlocking...");
+          setStatusMsg(t("faceAuth.verified"));
           setScanning(false);
           setTimeout(() => onVerified(), 1000);
           return;
         } else {
-          setStatusMsg("Face detected, but identity does not match Wallet!");
+          setStatusMsg(t("faceAuth.mismatch"));
         }
       } else {
-        setStatusMsg("Scanning for your face...");
+        setStatusMsg(t("faceAuth.scanning"));
       }
       
       if (scanning) {
@@ -89,7 +95,7 @@ const FaceAuth = ({ onVerified, account }) => {
 
   return (
     <div className="flex flex-col items-center justify-center p-8 bg-slate-800/80 border border-slate-700 rounded-2xl max-w-md mx-auto relative overflow-hidden">
-      <h2 className="text-2xl font-bold mb-4 text-white">Biometric Verification</h2>
+      <h2 className="text-2xl font-bold mb-4 text-white">{t("faceAuth.title")}</h2>
       
       {!error && (
         <p className={`text-center mb-6 font-medium ${statusMsg.includes("does not match") ? "text-red-400" : statusMsg.includes("Verified") ? "text-green-400" : "text-slate-400"}`}>
@@ -102,7 +108,7 @@ const FaceAuth = ({ onVerified, account }) => {
       ) : !modelsLoaded ? (
         <div className="flex flex-col items-center">
           <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-          <p className="text-slate-300">Loading AI Models...</p>
+          <p className="text-slate-300">{t("faceAuth.loadingModels")}</p>
         </div>
       ) : (
         <div className="relative w-full aspect-video rounded-xl overflow-hidden bg-black mb-6 border border-slate-600 shadow-lg">
@@ -128,10 +134,10 @@ const FaceAuth = ({ onVerified, account }) => {
 
       {!scanning && modelsLoaded && !error ? (
         <button
-          onClick={() => { setScanning(true); setStatusMsg("Scanning for your face..."); }}
+          onClick={() => { setScanning(true); setStatusMsg(t("faceAuth.scanning")); }}
           className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-6 rounded-xl transition-all"
         >
-          {statusMsg.includes("Verified") ? "Verified" : "Retry Scan"}
+          {statusMsg === t("faceAuth.verified") ? t("faceAuth.verified") : t("faceAuth.retry")}
         </button>
       ) : (
         <div className="h-10"></div>

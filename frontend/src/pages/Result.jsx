@@ -3,9 +3,10 @@ import { ethers } from "ethers";
 import { contractAddress, abi } from "../config";
 import { enrichElection, fetchElectionMetadataMap } from "../utils/electionMetadata";
 import { fetchSystemInsights, topEntries } from "../utils/insights";
+import { useLanguage } from "../utils/i18n";
 
 function formatElectionType(type) {
-  return type === "ward_based" ? "Ward Based" : "General";
+  return type;
 }
 
 function formatDate(timestamp) {
@@ -20,6 +21,7 @@ function Result() {
   const [elections, setElections] = useState([]);
   const [selectedElectionId, setSelectedElectionId] = useState(null);
   const [insights, setInsights] = useState(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     let active = true;
@@ -128,32 +130,32 @@ function Result() {
         <section className="theme-card vote-page-hero rounded-[2rem] px-6 py-10 md:px-10">
           <div className="mx-auto max-w-3xl text-center">
             <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] theme-text-muted">
-              Results explorer
+              {t("results.badge")}
             </div>
             <h1 className="app-title text-5xl font-extrabold tracking-tight md:text-6xl">
-              Election <span className="theme-gradient-text">Intelligence</span>
+              {t("results.title")}
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg theme-text-muted md:text-xl">
-              Review live tallies, compare election coverage, and inspect how voter registration and ballot metadata line up across the system.
+              {t("results.subtitle")}
             </p>
           </div>
         </section>
 
         <section className="grid gap-6 lg:grid-cols-4">
           <div className="theme-card rounded-[1.6rem] p-6">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">Logged Votes</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">{t("results.loggedVotes")}</p>
             <p className="mt-3 text-4xl font-extrabold">{insights?.voteSummary?.totalVotes ?? 0}</p>
           </div>
           <div className="theme-card rounded-[1.6rem] p-6">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">Unique Voters</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">{t("results.uniqueVoters")}</p>
             <p className="mt-3 text-4xl font-extrabold">{insights?.voteSummary?.uniqueVoters ?? 0}</p>
           </div>
           <div className="theme-card rounded-[1.6rem] p-6">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">Profiles</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">{t("results.profiles")}</p>
             <p className="mt-3 text-4xl font-extrabold">{insights?.profileSummary?.totalProfiles ?? 0}</p>
           </div>
           <div className="theme-card rounded-[1.6rem] p-6">
-            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">Ward Elections</p>
+            <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">{t("results.wardElections")}</p>
             <p className="mt-3 text-4xl font-extrabold">{insights?.metadataSummary?.wardScopedElections ?? 0}</p>
           </div>
         </section>
@@ -164,29 +166,29 @@ function Result() {
               <div className="space-y-4">
                 <div>
                   <label className="mb-2 block text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">
-                    Search Elections
+                    {t("results.searchElections")}
                   </label>
                   <input
                     type="text"
                     value={search}
                     onChange={(event) => setSearch(event.target.value)}
-                    placeholder="Search by title or ID"
+                    placeholder={t("results.searchPlaceholder")}
                     className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
                   />
                 </div>
 
                 <div>
                   <label className="mb-2 block text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">
-                    Ballot Type
+                    {t("results.ballotType")}
                   </label>
                   <select
                     value={typeFilter}
                     onChange={(event) => setTypeFilter(event.target.value)}
                     className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
                   >
-                    <option value="all">All elections</option>
-                    <option value="global">General / large elections</option>
-                    <option value="ward_based">Ward-based elections</option>
+                    <option value="all">{t("results.allElections")}</option>
+                    <option value="global">{t("results.generalElections")}</option>
+                    <option value="ward_based">{t("results.wardBasedElections")}</option>
                   </select>
                 </div>
               </div>
@@ -194,15 +196,15 @@ function Result() {
 
             <div className="theme-card rounded-[1.6rem] p-6">
               <div className="flex items-center justify-between">
-                <h2 className="text-xl font-bold">Available Elections</h2>
+                <h2 className="text-xl font-bold">{t("results.availableElections")}</h2>
                 <span className="text-sm theme-text-soft">{visibleElections.length}</span>
               </div>
 
               <div className="mt-5 space-y-3">
                 {loading ? (
-                  <p className="theme-text-soft">Loading election explorer...</p>
+                  <p className="theme-text-soft">{t("results.loading")}</p>
                 ) : visibleElections.length === 0 ? (
-                  <p className="theme-text-soft">No elections match the current search or type filter.</p>
+                  <p className="theme-text-soft">{t("results.noMatches")}</p>
                 ) : (
                   visibleElections.map((election) => (
                     <button
@@ -216,12 +218,12 @@ function Result() {
                           Election #{election.id}
                         </span>
                         <span className="rounded-full bg-[var(--surface-soft)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em]">
-                          {formatElectionType(election.metadata?.electionType)}
+                          {election.metadata?.electionType === "ward_based" ? t("results.wardBased") : t("results.general")}
                         </span>
                       </div>
                       <h3 className="mt-3 text-lg font-bold">{election.title}</h3>
                       <p className="mt-2 text-sm theme-text-soft">
-                        {election.totalVotes} votes tracked
+                        {election.totalVotes} {t("results.trackedVotes")}
                       </p>
                     </button>
                   ))
@@ -230,29 +232,29 @@ function Result() {
             </div>
 
             <div className="theme-card rounded-[1.6rem] p-6">
-              <h2 className="text-xl font-bold">Coverage Signals</h2>
+              <h2 className="text-xl font-bold">{t("results.coverageSignals")}</h2>
               <div className="mt-5 space-y-5">
                 <div>
-                  <p className="text-sm font-semibold theme-text-muted">Top districts</p>
+                  <p className="text-sm font-semibold theme-text-muted">{t("results.topDistricts")}</p>
                   <div className="mt-3 flex flex-wrap gap-2">
                     {leaderboardDistricts.length > 0 ? leaderboardDistricts.map(([district, count]) => (
                       <span key={district} className="signal-chip text-sm font-semibold">
                         {district}
                         <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs text-indigo-300">{count}</span>
                       </span>
-                    )) : <span className="theme-text-soft text-sm">No district data yet.</span>}
+                    )) : <span className="theme-text-soft text-sm">{t("results.noDistrictData")}</span>}
                   </div>
                 </div>
 
                 <div>
-                  <p className="text-sm font-semibold theme-text-muted">Most logged candidates</p>
+                  <p className="text-sm font-semibold theme-text-muted">{t("results.mostLoggedCandidates")}</p>
                   <div className="mt-3 space-y-2">
                     {leadingCandidates.length > 0 ? leadingCandidates.map(([name, count]) => (
                       <div key={name} className="flex items-center justify-between rounded-xl bg-[var(--surface-2)] px-4 py-3">
                         <span className="font-medium">{name}</span>
                         <span className="theme-text-soft">{count}</span>
                       </div>
-                    )) : <span className="theme-text-soft text-sm">Candidate logs will appear here once backend vote summaries exist.</span>}
+                    )) : <span className="theme-text-soft text-sm">{t("results.noCandidateLogs")}</span>}
                   </div>
                 </div>
               </div>
@@ -271,7 +273,7 @@ function Result() {
                       <h2 className="mt-3 text-3xl font-extrabold">{selectedElection.title}</h2>
                       <div className="mt-4 flex flex-wrap gap-2">
                         <span className="signal-chip text-sm font-semibold">
-                          {formatElectionType(selectedElection.metadata?.electionType)}
+                          {selectedElection.metadata?.electionType === "ward_based" ? t("results.wardBased") : t("results.general")}
                         </span>
                         {selectedElection.metadata?.district && (
                           <span className="signal-chip text-sm font-semibold">
@@ -288,11 +290,11 @@ function Result() {
 
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="theme-panel rounded-2xl px-4 py-4">
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] theme-text-soft">Starts</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] theme-text-soft">{t("results.starts")}</p>
                         <p className="mt-2 text-sm font-semibold">{formatDate(selectedElection.startTime)}</p>
                       </div>
                       <div className="theme-panel rounded-2xl px-4 py-4">
-                        <p className="text-xs font-bold uppercase tracking-[0.18em] theme-text-soft">Ends</p>
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] theme-text-soft">{t("results.ends")}</p>
                         <p className="mt-2 text-sm font-semibold">{formatDate(selectedElection.endTime)}</p>
                       </div>
                     </div>
@@ -301,26 +303,26 @@ function Result() {
 
                 <div className="grid gap-6 md:grid-cols-3">
                   <div className="theme-card rounded-[1.4rem] p-6">
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">Total Votes</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">{t("results.totalVotes")}</p>
                     <p className="mt-3 text-4xl font-extrabold">{selectedElection.totalVotes}</p>
                   </div>
                   <div className="theme-card rounded-[1.4rem] p-6">
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">Candidates</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">{t("results.candidates")}</p>
                     <p className="mt-3 text-4xl font-extrabold">{selectedElection.candidates.length}</p>
                   </div>
                   <div className="theme-card rounded-[1.4rem] p-6">
-                    <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">Current Leader</p>
+                    <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">{t("results.currentLeader")}</p>
                     <p className="mt-3 text-2xl font-extrabold">
-                      {selectedElection.leader?.name || "No leader yet"}
+                      {selectedElection.leader?.name || t("results.noLeaderYet")}
                     </p>
                   </div>
                 </div>
 
                 <div className="theme-card rounded-[1.8rem] p-7">
                   <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-2xl font-bold">Candidate Standings</h3>
+                    <h3 className="text-2xl font-bold">{t("results.standings")}</h3>
                     <span className="text-sm theme-text-soft">
-                      Sorted by live vote count
+                      {t("results.standingsHint")}
                     </span>
                   </div>
 
@@ -339,12 +341,12 @@ function Result() {
                               </div>
                               <div>
                                 <h4 className="text-lg font-bold">{candidate.name}</h4>
-                                <p className="text-sm theme-text-soft">{candidate.votes} votes</p>
+                                <p className="text-sm theme-text-soft">{candidate.votes} {t("results.loggedVotes").toLowerCase()}</p>
                               </div>
                             </div>
                             <div className="text-right">
                               <p className="text-2xl font-extrabold">{share.toFixed(1)}%</p>
-                              <p className="text-sm theme-text-soft">vote share</p>
+                              <p className="text-sm theme-text-soft">{t("results.voteShare")}</p>
                             </div>
                           </div>
 
@@ -357,31 +359,31 @@ function Result() {
                         </div>
                       );
                     }) : (
-                      <p className="theme-text-soft">No candidate records are available for this election yet.</p>
+                      <p className="theme-text-soft">{t("results.noCandidateRecords")}</p>
                     )}
                   </div>
                 </div>
 
                 <div className="theme-card rounded-[1.8rem] p-7">
                   <div className="flex items-center justify-between gap-4">
-                    <h3 className="text-2xl font-bold">Recent Backend Vote Activity</h3>
-                    <span className="text-sm theme-text-soft">Latest 5 logged records</span>
+                    <h3 className="text-2xl font-bold">{t("results.recentActivity")}</h3>
+                    <span className="text-sm theme-text-soft">{t("results.recentActivityHint")}</span>
                   </div>
 
                   <div className="mt-6 space-y-3">
                     {(insights?.voteSummary?.recentVotes || []).length > 0 ? insights.voteSummary.recentVotes.map((vote) => (
                       <div key={vote.id} className="flex flex-col gap-2 rounded-2xl bg-[var(--surface-2)] px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
                         <div>
-                          <p className="font-semibold">{vote.candidate || "Candidate unavailable"}</p>
-                          <p className="text-sm theme-text-soft">{vote.voterPreview || "Anonymous voter"}</p>
+                          <p className="font-semibold">{vote.candidate || t("results.candidateUnavailable")}</p>
+                          <p className="text-sm theme-text-soft">{vote.voterPreview || t("results.anonymousVoter")}</p>
                         </div>
                         <div className="text-sm theme-text-soft">
-                          {vote.createdAt ? new Date(vote.createdAt).toLocaleString() : "Timestamp unavailable"}
+                          {vote.createdAt ? new Date(vote.createdAt).toLocaleString() : t("results.timestampUnavailable")}
                         </div>
                       </div>
                     )) : (
                       <p className="theme-text-soft">
-                        Backend vote logs are empty right now, so this activity stream will fill in as records are posted to the API.
+                        {t("results.noActivity")}
                       </p>
                     )}
                   </div>
@@ -389,9 +391,9 @@ function Result() {
               </>
             ) : (
               <div className="theme-card rounded-[1.8rem] p-10 text-center">
-                <h2 className="text-2xl font-bold">No election selected</h2>
+                <h2 className="text-2xl font-bold">{t("results.noElectionSelected")}</h2>
                 <p className="mt-3 theme-text-soft">
-                  Connect a wallet with access to the deployment and choose an election from the list to inspect tallies here.
+                  {t("results.noElectionSelectedHint")}
                 </p>
               </div>
             )}

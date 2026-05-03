@@ -1,6 +1,7 @@
 import React, { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/navbar";
+import { LanguageProvider, useLanguage } from "./utils/i18n";
 
 const Home = lazy(() => import("./pages/Home"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -9,8 +10,9 @@ const Verify = lazy(() => import("./pages/Verify"));
 const Admin = lazy(() => import("./pages/Admin"));
 const Result = lazy(() => import("./pages/Result"));
 
-function App() {
+function AppContent() {
   const [theme, setTheme] = useState(() => localStorage.getItem("securevote-theme") || "dark");
+  const { t } = useLanguage();
 
   useEffect(() => {
     localStorage.setItem("securevote-theme", theme);
@@ -32,7 +34,7 @@ function App() {
 
         <div className="theme-shell relative z-10">
           <Navbar theme={theme} onToggleTheme={toggleTheme} />
-          <Suspense fallback={<div className="px-6 py-16 text-center theme-text-muted">Loading SecureVote...</div>}>
+          <Suspense fallback={<div className="px-6 py-16 text-center theme-text-muted">{t("common.loading")}</div>}>
             <Routes>
               <Route path="/" element={<Home theme={theme} />} />
               <Route path="/dashboard" element={<Dashboard />} />
@@ -45,6 +47,14 @@ function App() {
         </div>
       </div>
     </Router>
+  );
+}
+
+function App() {
+  return (
+    <LanguageProvider>
+      <AppContent />
+    </LanguageProvider>
   );
 }
 

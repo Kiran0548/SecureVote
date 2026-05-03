@@ -4,6 +4,7 @@ import { ethers } from "ethers";
 import { contractAddress, abi } from "../config";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
 import { fetchSystemInsights } from "../utils/insights";
+import { useLanguage } from "../utils/i18n";
 
 function Dashboard() {
   const [contract, setContract] = useState(null);
@@ -19,6 +20,7 @@ function Dashboard() {
   const [showAllPastElections, setShowAllPastElections] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
   const [insights, setInsights] = useState(null);
+  const { t } = useLanguage();
 
   useEffect(() => {
     init();
@@ -133,31 +135,31 @@ function Dashboard() {
       <div className="max-w-6xl mx-auto space-y-12">
         <div className="theme-card vote-page-hero rounded-[2rem] px-6 py-10 text-center animate-fade-in-up md:px-10">
           <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] theme-text-muted">
-            Live election intelligence
+            {t("dashboard.badge")}
           </div>
           <h1 className="app-title text-5xl md:text-6xl font-extrabold tracking-tight">
-            Voter <span className="theme-gradient-text">Dashboard</span>
+            <span className="theme-gradient-text">{t("dashboard.title")}</span>
           </h1>
           <p className="mx-auto max-w-2xl pt-4 text-lg theme-text-muted md:text-xl">
-            Monitor ongoing elections, prepare for upcoming ones, and review transparent historical results in one place.
+            {t("dashboard.subtitle")}
           </p>
         </div>
 
         <div className="grid gap-4 md:grid-cols-4">
           <div className="theme-card rounded-[1.5rem] p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Live Now</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">{t("dashboard.liveNow")}</p>
             <p className="mt-3 text-3xl font-extrabold">{activeNowCount}</p>
           </div>
           <div className="theme-card rounded-[1.5rem] p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Tracked Elections</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">{t("dashboard.trackedElections")}</p>
             <p className="mt-3 text-3xl font-extrabold">{allElections.length}</p>
           </div>
           <div className="theme-card rounded-[1.5rem] p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Profiles Loaded</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">{t("dashboard.profilesLoaded")}</p>
             <p className="mt-3 text-3xl font-extrabold">{insights?.profileSummary?.totalProfiles ?? 0}</p>
           </div>
           <div className="theme-card rounded-[1.5rem] p-5">
-            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Vote Logs</p>
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">{t("dashboard.voteLogs")}</p>
             <p className="mt-3 text-3xl font-extrabold">{insights?.voteSummary?.totalVotes ?? 0}</p>
           </div>
         </div>
@@ -176,21 +178,21 @@ function Dashboard() {
                 <div>
                   <h2 className="text-2xl font-bold flex items-center gap-3">
                     <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-                    Current Status
+                    {t("dashboard.currentStatus")}
                   </h2>
                   <p className="mt-2 text-sm theme-text-soft">
-                    Search active ballots by title and jump straight into the relevant voting room.
+                    {t("dashboard.currentStatusHint")}
                   </p>
                 </div>
                 <div className="w-full md:max-w-sm">
                   <label className="mb-2 block text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">
-                    Search active elections
+                    {t("dashboard.searchLabel")}
                   </label>
                   <input
                     type="text"
                     value={searchTerm}
                     onChange={(event) => setSearchTerm(event.target.value)}
-                    placeholder="Search by election name"
+                    placeholder={t("dashboard.searchPlaceholder")}
                     className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
                   />
                 </div>
@@ -226,8 +228,8 @@ function Dashboard() {
               ) : (
                 <div className="bg-slate-800/40 border border-slate-700/50 p-8 flex flex-col items-center justify-center text-center rounded-3xl min-h-[300px]">
                   <svg className="w-16 h-16 text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4M8 16l-4-4 4-4m12 0l4 4-4 4"></path></svg>
-                  <h3 className="text-2xl font-bold mb-2 text-slate-400">No Matching Elections</h3>
-                  <p className="text-slate-500 max-w-md">{allElections.length === 0 ? "There are currently no ongoing or upcoming elections initialized by the administrator." : "No active or upcoming election matches your search right now."}</p>
+                  <h3 className="text-2xl font-bold mb-2 text-slate-400">{t("dashboard.noMatchTitle")}</h3>
+                  <p className="text-slate-500 max-w-md">{allElections.length === 0 ? t("dashboard.noParallelBody") : t("dashboard.noMatchBody")}</p>
                 </div>
               )}
             </div>
@@ -237,7 +239,7 @@ function Dashboard() {
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2 className="text-2xl font-bold flex items-center gap-3">
                   <svg className="w-6 h-6 text-purple-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"></path></svg>
-                  History & Results
+                  {t("dashboard.historyResults")}
                 </h2>
                 {pastElections.length > 3 && (
                   <button

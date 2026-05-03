@@ -1,8 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useLanguage } from "../utils/i18n";
 
 function Navbar({ theme, onToggleTheme }) {
   const [account, setAccount] = useState(null);
+  const { language, setLanguage, languages, t } = useLanguage();
 
   useEffect(() => {
     const checkWallet = async () => {
@@ -60,24 +62,40 @@ function Navbar({ theme, onToggleTheme }) {
 
           <div className="hidden items-center gap-5 md:flex">
             <Link to="/dashboard" className="nav-link text-sm font-semibold">
-              Dashboard
+              {t("nav.dashboard")}
             </Link>
             <Link to="/results" className="nav-link text-sm font-semibold">
-              Results
+              {t("nav.results")}
             </Link>
             <Link to="/vote" className="nav-link text-sm font-semibold">
-              Vote
+              {t("nav.vote")}
             </Link>
             <Link to="/verify" className="nav-link text-sm font-semibold">
-              Verify
+              {t("nav.verify")}
             </Link>
             <Link to="/admin" className="nav-link text-sm font-semibold">
-              Admin
+              {t("nav.admin")}
             </Link>
           </div>
         </div>
 
         <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-1)] px-3 py-2 text-sm theme-text-muted">
+            <span className="hidden sm:inline">{t("nav.language")}</span>
+            <select
+              value={language}
+              onChange={(event) => setLanguage(event.target.value)}
+              className="rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-2 py-1 text-sm text-inherit outline-none sm:px-3"
+              aria-label={t("nav.language")}
+            >
+              {languages.map((option) => (
+                <option key={option.code} value={option.code}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+          </label>
+
           <button
             type="button"
             onClick={onToggleTheme}
@@ -101,7 +119,7 @@ function Navbar({ theme, onToggleTheme }) {
               onClick={handleConnect}
               className="theme-primary-btn rounded-full px-5 py-2.5 text-sm font-semibold"
             >
-              Connect Wallet
+              {t("nav.connectWallet")}
             </button>
           )}
         </div>
