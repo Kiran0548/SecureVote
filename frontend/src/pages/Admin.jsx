@@ -50,6 +50,7 @@ function Admin() {
   const [localBody, setLocalBody] = useState("");
   const [wardNumber, setWardNumber] = useState("");
   const [voterName, setVoterName] = useState("");
+  const [voterRegistrationType, setVoterRegistrationType] = useState("WARD_BASED");
   const [voterDistrict, setVoterDistrict] = useState("");
   const [voterLocalBody, setVoterLocalBody] = useState("");
   const [voterWardNumber, setVoterWardNumber] = useState("");
@@ -264,8 +265,12 @@ function Admin() {
     e.preventDefault();
     const sc = await ensureContract();
     if (!sc || !whitelistAddress) return;
-    if (!voterName.trim() || !voterDistrict.trim() || !voterLocalBody.trim() || !voterWardNumber.trim()) {
-      alert("Please enter the voter's name, district, local body, and ward before approving.");
+    if (!voterName.trim()) {
+      alert("Please enter the voter's name before approving.");
+      return;
+    }
+    if (voterRegistrationType === "WARD_BASED" && (!voterDistrict.trim() || !voterLocalBody.trim() || !voterWardNumber.trim())) {
+      alert("Please enter district, local body, and ward details for a ward-based voter.");
       return;
     }
     try {
@@ -273,9 +278,9 @@ function Admin() {
       try {
         const tx = await sc.approveVoter(
           whitelistAddress,
-          voterDistrict.trim(),
-          voterLocalBody.trim(),
-          voterWardNumber.trim()
+          voterRegistrationType === "WARD_BASED" ? voterDistrict.trim() : "",
+          voterRegistrationType === "WARD_BASED" ? voterLocalBody.trim() : "",
+          voterRegistrationType === "WARD_BASED" ? voterWardNumber.trim() : ""
         );
         await tx.wait();
       } catch (contractError) {
@@ -287,9 +292,9 @@ function Admin() {
       await saveVoterProfile({
         walletAddress: whitelistAddress,
         fullName: voterName,
-        district: voterDistrict,
-        localBody: voterLocalBody,
-        wardNumber: voterWardNumber,
+        district: voterRegistrationType === "WARD_BASED" ? voterDistrict : "",
+        localBody: voterRegistrationType === "WARD_BASED" ? voterLocalBody : "",
+        wardNumber: voterRegistrationType === "WARD_BASED" ? voterWardNumber : "",
         idReferenceMasked: maskIdReference(voterIdReference),
       });
       
@@ -301,6 +306,7 @@ function Admin() {
       alert("Address successfully whitelisted and voter profile saved.");
       setWhitelistAddress("");
       setVoterName("");
+      setVoterRegistrationType("WARD_BASED");
       setVoterDistrict("");
       setVoterLocalBody("");
       setVoterWardNumber("");
@@ -365,6 +371,7 @@ function Admin() {
   const autofillWhitelistFromApplication = (application) => {
     setWhitelistAddress(application.walletAddress || "");
     setVoterName(application.fullName || "");
+    setVoterRegistrationType(application.registrationType || "WARD_BASED");
     setVoterDistrict(application.district || "");
     setVoterLocalBody(application.localBody || "");
     setVoterWardNumber(application.wardNumber || "");
@@ -880,41 +887,59 @@ function Admin() {
                     disabled={loading}
                   />
                 </div>
-                <div className="grid gap-4 md:grid-cols-3">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">District</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Jaipur"
-                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-                      value={voterDistrict}
-                      onChange={(e) => setVoterDistrict(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Local Body / Panchayat</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Gram Panchayat North"
-                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-                      value={voterLocalBody}
-                      onChange={(e) => setVoterLocalBody(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Ward Number</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. 12"
-                      className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
-                      value={voterWardNumber}
-                      onChange={(e) => setVoterWardNumber(e.target.value)}
-                      disabled={loading}
-                    />
-                  </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Registration Type</label>
+                  <select
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    value={voterRegistrationType}
+                    onChange={(e) => setVoterRegistrationType(e.target.value)}
+                    disabled={loading}
+                  >
+                    <option value="GENERAL">General Election</option>
+                    <option value="WARD_BASED">Ward-Based Election</option>
+                  </select>
                 </div>
+                {voterRegistrationType === "WARD_BASED" ? (
+                  <div className="grid gap-4 md:grid-cols-3">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">District</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Jaipur"
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                        value={voterDistrict}
+                        onChange={(e) => setVoterDistrict(e.target.value)}
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Local Body / Panchayat</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. Gram Panchayat North"
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                        value={voterLocalBody}
+                        onChange={(e) => setVoterLocalBody(e.target.value)}
+                        disabled={loading}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-300 mb-2">Ward Number</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. 12"
+                        className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                        value={voterWardNumber}
+                        onChange={(e) => setVoterWardNumber(e.target.value)}
+                        disabled={loading}
+                      />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-slate-400">
+                    District, local body, and ward details are not required for general election access.
+                  </div>
+                )}
                 <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Voter ID / Aadhaar Reference</label>
                   <input
@@ -1051,14 +1076,6 @@ function Admin() {
                                   className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
                                 >
                                   Whitelist and Approve
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={loading}
-                                  onClick={() => handleReviewApplication(application, "approve")}
-                                  className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
-                                >
-                                  Approve
                                 </button>
                                 <button
                                   type="button"

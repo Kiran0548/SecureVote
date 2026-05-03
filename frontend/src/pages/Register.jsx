@@ -23,7 +23,7 @@ function loadImage(dataUrl) {
 async function compressImageFile(file) {
   const originalDataUrl = await readFileAsDataUrl(file);
   const image = await loadImage(originalDataUrl);
-  const maxSize = 512;
+  const maxSize = 768;
   const scale = Math.min(maxSize / image.width, maxSize / image.height, 1);
   const width = Math.max(1, Math.round(image.width * scale));
   const height = Math.max(1, Math.round(image.height * scale));
@@ -38,7 +38,7 @@ async function compressImageFile(file) {
   }
 
   context.drawImage(image, 0, 0, width, height);
-  return canvas.toDataURL("image/jpeg", 0.82);
+  return canvas.toDataURL("image/jpeg", 0.9);
 }
 
 function formatSubmissionError(error) {
