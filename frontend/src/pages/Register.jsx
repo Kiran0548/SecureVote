@@ -7,6 +7,7 @@ function Register() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
+  const [photoPreview, setPhotoPreview] = useState("");
 
   useEffect(() => {
     const loadWallet = async () => {
@@ -28,6 +29,23 @@ function Register() {
       ...current,
       [field]: value,
     }));
+  };
+
+  const handlePhotoChange = (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      setPhotoPreview("");
+      handleChange("photoDataUrl", "");
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const result = typeof reader.result === "string" ? reader.result : "";
+      setPhotoPreview(result);
+      handleChange("photoDataUrl", result);
+    };
+    reader.readAsDataURL(file);
   };
 
   const connectWallet = async () => {
@@ -52,6 +70,9 @@ function Register() {
         ...form,
         walletAddress: form.walletAddress.trim().toLowerCase(),
         idReferenceMasked: maskIdReference(form.idReferenceMasked),
+        district: form.registrationType === "GENERAL" ? "" : form.district,
+        localBody: form.registrationType === "GENERAL" ? "" : form.localBody,
+        wardNumber: form.registrationType === "GENERAL" ? "" : form.wardNumber,
       });
 
       setMessageType("success");
@@ -60,6 +81,7 @@ function Register() {
         ...defaultVoterApplication,
         walletAddress: current.walletAddress,
       }));
+      setPhotoPreview("");
     } catch (error) {
       setMessageType("error");
       setMessage(error.message || "Unable to submit application.");
@@ -115,6 +137,19 @@ function Register() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-5 md:grid-cols-2">
               <label className="space-y-2">
+                <span className="text-sm font-semibold">Registration Type</span>
+                <select
+                  value={form.registrationType}
+                  onChange={(event) => handleChange("registrationType", event.target.value)}
+                  className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
+                  required
+                >
+                  <option value="GENERAL">General Election</option>
+                  <option value="WARD_BASED">Ward-Based Election</option>
+                </select>
+              </label>
+
+              <label className="space-y-2">
                 <span className="text-sm font-semibold">Full Name</span>
                 <input
                   type="text"
@@ -136,38 +171,42 @@ function Register() {
                 />
               </label>
 
-              <label className="space-y-2">
-                <span className="text-sm font-semibold">District</span>
-                <input
-                  type="text"
-                  value={form.district}
-                  onChange={(event) => handleChange("district", event.target.value)}
-                  className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
-                  required
-                />
-              </label>
+              {form.registrationType === "WARD_BASED" ? (
+                <>
+                  <label className="space-y-2">
+                    <span className="text-sm font-semibold">District</span>
+                    <input
+                      type="text"
+                      value={form.district}
+                      onChange={(event) => handleChange("district", event.target.value)}
+                      className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
+                      required
+                    />
+                  </label>
 
-              <label className="space-y-2">
-                <span className="text-sm font-semibold">Local Body / Panchayat</span>
-                <input
-                  type="text"
-                  value={form.localBody}
-                  onChange={(event) => handleChange("localBody", event.target.value)}
-                  className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
-                  required
-                />
-              </label>
+                  <label className="space-y-2">
+                    <span className="text-sm font-semibold">Local Body / Panchayat</span>
+                    <input
+                      type="text"
+                      value={form.localBody}
+                      onChange={(event) => handleChange("localBody", event.target.value)}
+                      className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
+                      required
+                    />
+                  </label>
 
-              <label className="space-y-2">
-                <span className="text-sm font-semibold">Ward Number</span>
-                <input
-                  type="text"
-                  value={form.wardNumber}
-                  onChange={(event) => handleChange("wardNumber", event.target.value)}
-                  className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
-                  required
-                />
-              </label>
+                  <label className="space-y-2">
+                    <span className="text-sm font-semibold">Ward Number</span>
+                    <input
+                      type="text"
+                      value={form.wardNumber}
+                      onChange={(event) => handleChange("wardNumber", event.target.value)}
+                      className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
+                      required
+                    />
+                  </label>
+                </>
+              ) : null}
 
               <label className="space-y-2">
                 <span className="text-sm font-semibold">ID Reference</span>
@@ -193,9 +232,31 @@ function Register() {
               />
             </label>
 
+            <label className="space-y-2">
+              <span className="text-sm font-semibold">Voter Photo</span>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handlePhotoChange}
+                className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none file:mr-4 file:rounded-full file:border-0 file:bg-indigo-500/15 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-200"
+                required
+              />
+            </label>
+
+            {photoPreview ? (
+              <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4">
+                <p className="mb-3 text-sm font-semibold">Photo Preview</p>
+                <img
+                  src={photoPreview}
+                  alt="Voter preview"
+                  className="h-40 w-40 rounded-2xl object-cover"
+                />
+              </div>
+            ) : null}
+
             <button
               type="submit"
-              disabled={submitting}
+              disabled={submitting || !form.photoDataUrl}
               className="theme-primary-btn rounded-2xl px-6 py-3 text-sm font-bold disabled:opacity-60"
             >
               {submitting ? "Submitting..." : "Submit Application"}

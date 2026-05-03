@@ -58,6 +58,7 @@ function Admin() {
   const [voterApplications, setVoterApplications] = useState([]);
   const [profileSearch, setProfileSearch] = useState("");
   const [applicationSearch, setApplicationSearch] = useState("");
+  const [selectedApplicationId, setSelectedApplicationId] = useState(null);
   const [editingWallet, setEditingWallet] = useState("");
   const [editingProfile, setEditingProfile] = useState(null);
   const { t } = useLanguage();
@@ -229,6 +230,17 @@ function Admin() {
     }
   };
 
+  const applyApplicationPhoto = (photoDataUrl) => {
+    if (!photoDataUrl) {
+      setPhoto(null);
+      setDescriptor(null);
+      return;
+    }
+
+    setPhoto(photoDataUrl);
+    setDescriptor(null);
+  };
+
   const processFace = async (imgEl) => {
     if (!modelsLoaded || !imgEl) return;
     try {
@@ -295,7 +307,9 @@ function Admin() {
       setVoterIdReference("");
       setPhoto(null);
       setDescriptor(null);
+      setSelectedApplicationId(null);
       setVoterProfiles(await fetchAllVoterProfiles().catch(() => []));
+      await loadApplications();
     } catch (err) {
       console.error(err);
       alert("Error: " + (err.reason || err.message));
@@ -355,6 +369,8 @@ function Admin() {
     setVoterLocalBody(application.localBody || "");
     setVoterWardNumber(application.wardNumber || "");
     setVoterIdReference(application.idReferenceMasked || "");
+    setSelectedApplicationId(application.id ?? null);
+    applyApplicationPhoto(application.photoDataUrl || "");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -362,7 +378,9 @@ function Admin() {
     const note = window.prompt(
       decision === "approve"
         ? "Optional approval note:"
-        : "Optional rejection note:",
+        : decision === "reject"
+          ? "Optional rejection note:"
+          : "Optional revoke note:",
       ""
     );
 
@@ -377,12 +395,34 @@ function Admin() {
       if (decision === "approve") {
         autofillWhitelistFromApplication(reviewed);
         alert("Application approved. The voter profile has been created and the whitelist form is prefilled for the on-chain approval step.");
+      } else if (decision === "revoke") {
+        localStorage.removeItem(`face_${application.walletAddress.toLowerCase()}`);
+        alert("Approval revoked. The backend voter profile was removed.");
       } else {
         alert("Application rejected.");
       }
     } catch (error) {
       console.error(error);
       alert(`Unable to ${decision} application: ` + error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleWhitelistAndApprove = async (application) => {
+    const note = window.prompt("Optional approval note:", "");
+    if (note === null) return;
+
+    try {
+      setLoading(true);
+      const reviewed = await reviewVoterApplication(application.id, "approve", note);
+      await loadApplications();
+      setVoterProfiles(await fetchAllVoterProfiles().catch(() => []));
+      autofillWhitelistFromApplication(reviewed);
+      alert("Application approved and loaded into the whitelist form with the submitted photo. The face descriptor will generate automatically from that photo.");
+    } catch (error) {
+      console.error(error);
+      alert("Unable to approve application: " + error.message);
     } finally {
       setLoading(false);
     }
@@ -925,7 +965,7 @@ function Admin() {
                   disabled={loading || !whitelistAddress || !descriptor}
                   className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-semibold py-3 px-4 rounded-lg transition-colors mt-2"
                 >
-                  {loading ? "Processing..." : "Add to Whitelist & Register Face"}
+                  {loading ? "Processing..." : selectedApplicationId ? "Whitelist Approved Applicant & Register Face" : "Add to Whitelist & Register Face"}
                 </button>
               </form>
             </div>
@@ -958,6 +998,9 @@ function Admin() {
                           <div>
                             <div className="flex flex-wrap items-center gap-3">
                               <h3 className="text-lg font-semibold text-white">{application.fullName}</h3>
+                              <span className="rounded-full border border-sky-500/20 bg-sky-500/10 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-sky-300">
+                                {application.registrationType === "GENERAL" ? "General" : "Ward Based"}
+                              </span>
                               <span className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
                                 application.status === "PENDING"
                                   ? "bg-amber-500/10 text-amber-300 border border-amber-500/20"
@@ -969,9 +1012,20 @@ function Admin() {
                               </span>
                             </div>
                             <p className="mt-1 font-mono text-xs text-slate-400">{application.walletAddress}</p>
-                            <p className="mt-2 text-sm text-slate-300">{application.district} / {application.localBody} / Ward {application.wardNumber}</p>
+                            {application.registrationType === "WARD_BASED" ? (
+                              <p className="mt-2 text-sm text-slate-300">{application.district} / {application.localBody} / Ward {application.wardNumber}</p>
+                            ) : (
+                              <p className="mt-2 text-sm text-slate-300">No ward details required for general election access.</p>
+                            )}
                             <p className="mt-1 text-sm text-slate-400">Masked ID: {application.idReferenceMasked || "Not provided"}</p>
                             <p className="mt-1 text-sm text-slate-400">Proof Ref: {application.idProofPath || "Not provided"}</p>
+                            {application.photoDataUrl ? (
+                              <img
+                                src={application.photoDataUrl}
+                                alt={`${application.fullName} submitted`}
+                                className="mt-3 h-24 w-24 rounded-xl border border-slate-700 object-cover"
+                              />
+                            ) : null}
                             <p className="mt-1 text-xs text-slate-500">
                               Submitted: {application.submittedAt ? new Date(application.submittedAt).toLocaleString() : "Unknown"}
                             </p>
@@ -993,6 +1047,14 @@ function Admin() {
                                 <button
                                   type="button"
                                   disabled={loading}
+                                  onClick={() => handleWhitelistAndApprove(application)}
+                                  className="rounded-xl bg-indigo-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-indigo-500 disabled:opacity-50"
+                                >
+                                  Whitelist and Approve
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={loading}
                                   onClick={() => handleReviewApplication(application, "approve")}
                                   className="rounded-xl bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-emerald-500 disabled:opacity-50"
                                 >
@@ -1007,6 +1069,16 @@ function Admin() {
                                   Reject
                                 </button>
                               </>
+                            ) : null}
+                            {application.status === "APPROVED" ? (
+                              <button
+                                type="button"
+                                disabled={loading}
+                                onClick={() => handleReviewApplication(application, "revoke")}
+                                className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-semibold text-red-300 transition-colors hover:bg-red-500/20 disabled:opacity-50"
+                              >
+                                Remove Approval
+                              </button>
                             ) : null}
                           </div>
                         </div>

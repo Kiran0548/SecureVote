@@ -5,6 +5,7 @@ import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.Lob;
 
 import java.time.Instant;
 
@@ -30,8 +31,15 @@ public class VoterApplication {
     @Column(nullable = false)
     private String wardNumber;
 
+    @Column(nullable = false)
+    private String registrationType;
+
     private String idReferenceMasked;
     private String idProofPath;
+
+    @Lob
+    @Column(columnDefinition = "CLOB")
+    private String photoDataUrl;
 
     @Column(nullable = false)
     private String status;
@@ -90,6 +98,14 @@ public class VoterApplication {
         this.wardNumber = wardNumber;
     }
 
+    public String getRegistrationType() {
+        return registrationType;
+    }
+
+    public void setRegistrationType(String registrationType) {
+        this.registrationType = registrationType;
+    }
+
     public String getIdReferenceMasked() {
         return idReferenceMasked;
     }
@@ -104,6 +120,14 @@ public class VoterApplication {
 
     public void setIdProofPath(String idProofPath) {
         this.idProofPath = idProofPath;
+    }
+
+    public String getPhotoDataUrl() {
+        return photoDataUrl;
+    }
+
+    public void setPhotoDataUrl(String photoDataUrl) {
+        this.photoDataUrl = photoDataUrl;
     }
 
     public String getStatus() {

@@ -36,24 +36,34 @@ public class VoterApplicationController {
     @PostMapping
     public VoterApplication createApplication(@RequestBody VoterApplication application) {
         String walletAddress = normalizeWallet(application.getWalletAddress());
+        String registrationType = trimValue(application.getRegistrationType()).toUpperCase();
         if (walletAddress.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Wallet address is required");
         }
-        if (isBlank(application.getFullName()) || isBlank(application.getDistrict())
-            || isBlank(application.getLocalBody()) || isBlank(application.getWardNumber())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "All voter details are required");
+        if (isBlank(application.getFullName()) || isBlank(application.getIdReferenceMasked())
+            || isBlank(application.getPhotoDataUrl())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Name, ID reference, and voter photo are required");
+        }
+        if (!registrationType.equals("GENERAL") && !registrationType.equals("WARD_BASED")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Registration type must be GENERAL or WARD_BASED");
+        }
+        if (registrationType.equals("WARD_BASED") && (isBlank(application.getDistrict())
+            || isBlank(application.getLocalBody()) || isBlank(application.getWardNumber()))) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "District, local body, and ward are required for ward-based registration");
         }
         if (voterApplicationRepository.existsByWalletAddressIgnoreCaseAndStatus(walletAddress, "PENDING")) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "A pending application already exists for this wallet");
         }
 
         application.setWalletAddress(walletAddress);
+        application.setRegistrationType(registrationType);
         application.setFullName(application.getFullName().trim());
-        application.setDistrict(application.getDistrict().trim());
-        application.setLocalBody(application.getLocalBody().trim());
-        application.setWardNumber(application.getWardNumber().trim());
+        application.setDistrict(trimValue(application.getDistrict()));
+        application.setLocalBody(trimValue(application.getLocalBody()));
+        application.setWardNumber(trimValue(application.getWardNumber()));
         application.setIdReferenceMasked(trimValue(application.getIdReferenceMasked()));
         application.setIdProofPath(trimValue(application.getIdProofPath()));
+        application.setPhotoDataUrl(trimValue(application.getPhotoDataUrl()));
         application.setReviewNote("");
         application.setStatus("PENDING");
         application.setSubmittedAt(Instant.now());
@@ -89,6 +99,20 @@ public class VoterApplicationController {
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
 
         application.setStatus("REJECTED");
+        application.setReviewedAt(Instant.now());
+        application.setReviewNote(payload != null ? trimValue(payload.get("reviewNote")) : "");
+
+        return voterApplicationRepository.save(application);
+    }
+
+    @PutMapping("/{id}/revoke")
+    public VoterApplication revokeApplicationApproval(@PathVariable Long id, @RequestBody(required = false) Map<String, String> payload) {
+        VoterApplication application = voterApplicationRepository.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Application not found"));
+
+        voterProfileRepository.deleteById(application.getWalletAddress());
+
+        application.setStatus("REVOKED");
         application.setReviewedAt(Instant.now());
         application.setReviewNote(payload != null ? trimValue(payload.get("reviewNote")) : "");
 
