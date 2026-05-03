@@ -2,6 +2,57 @@ import { useEffect, useState } from "react";
 import { maskIdReference } from "../utils/voterProfile";
 import { defaultVoterApplication, submitVoterApplication } from "../utils/voterApplications";
 
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
+    reader.onerror = () => reject(new Error("Unable to read the selected photo."));
+    reader.readAsDataURL(file);
+  });
+}
+
+function loadImage(dataUrl) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.onload = () => resolve(image);
+    image.onerror = () => reject(new Error("Unable to process the selected photo."));
+    image.src = dataUrl;
+  });
+}
+
+async function compressImageFile(file) {
+  const originalDataUrl = await readFileAsDataUrl(file);
+  const image = await loadImage(originalDataUrl);
+  const maxSize = 512;
+  const scale = Math.min(maxSize / image.width, maxSize / image.height, 1);
+  const width = Math.max(1, Math.round(image.width * scale));
+  const height = Math.max(1, Math.round(image.height * scale));
+
+  const canvas = document.createElement("canvas");
+  canvas.width = width;
+  canvas.height = height;
+
+  const context = canvas.getContext("2d");
+  if (!context) {
+    throw new Error("Unable to prepare the selected photo.");
+  }
+
+  context.drawImage(image, 0, 0, width, height);
+  return canvas.toDataURL("image/jpeg", 0.82);
+}
+
+function formatSubmissionError(error) {
+  const raw = error?.message || "Unable to submit application.";
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.message) return parsed.message;
+    if (parsed?.error) return `${parsed.error}. Please check the required fields and photo size.`;
+  } catch {
+    // Ignore JSON parsing errors and fall back to the raw message.
+  }
+  return raw;
+}
+
 function Register() {
   const [form, setForm] = useState(defaultVoterApplication);
   const [submitting, setSubmitting] = useState(false);
@@ -31,7 +82,7 @@ function Register() {
     }));
   };
 
-  const handlePhotoChange = (event) => {
+  const handlePhotoChange = async (event) => {
     const file = event.target.files?.[0];
     if (!file) {
       setPhotoPreview("");
@@ -39,13 +90,16 @@ function Register() {
       return;
     }
 
-    const reader = new FileReader();
-    reader.onload = () => {
-      const result = typeof reader.result === "string" ? reader.result : "";
+    try {
+      const result = await compressImageFile(file);
       setPhotoPreview(result);
       handleChange("photoDataUrl", result);
-    };
-    reader.readAsDataURL(file);
+    } catch (error) {
+      setMessageType("error");
+      setMessage(error.message || "Unable to process the selected photo.");
+      setPhotoPreview("");
+      handleChange("photoDataUrl", "");
+    }
   };
 
   const connectWallet = async () => {
@@ -84,7 +138,7 @@ function Register() {
       setPhotoPreview("");
     } catch (error) {
       setMessageType("error");
-      setMessage(error.message || "Unable to submit application.");
+      setMessage(formatSubmissionError(error));
     } finally {
       setSubmitting(false);
     }
