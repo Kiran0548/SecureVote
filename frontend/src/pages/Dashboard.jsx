@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { ethers } from "ethers";
 import { contractAddress, abi } from "../config";
 import AnalyticsDashboard from "../components/AnalyticsDashboard";
+import { fetchSystemInsights } from "../utils/insights";
 
 function Dashboard() {
   const [contract, setContract] = useState(null);
@@ -16,9 +17,12 @@ function Dashboard() {
   const [walletConnected, setWalletConnected] = useState(false);
   const [allElections, setAllElections] = useState([]);
   const [showAllPastElections, setShowAllPastElections] = useState(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [insights, setInsights] = useState(null);
 
   useEffect(() => {
     init();
+    fetchSystemInsights().then(setInsights);
     const interval = setInterval(() => {
       setCurrentTime(Math.floor(Date.now() / 1000));
     }, 1000);
@@ -119,6 +123,10 @@ function Dashboard() {
   const isTimeUp = electionState === 1 && currentTime > endTime && endTime > 0;
   const sortedPastElections = pastElections.slice().sort((a, b) => b.id - a.id);
   const visiblePastElections = showAllPastElections ? sortedPastElections : sortedPastElections.slice(0, 3);
+  const visibleCurrentElections = allElections.filter((election) => (
+    !searchTerm.trim() || election.title.toLowerCase().includes(searchTerm.trim().toLowerCase())
+  ));
+  const activeNowCount = allElections.filter((election) => currentTime >= election.startTime && currentTime <= election.endTime).length;
 
   return (
     <div className="min-h-[calc(100vh-80px)] px-4 py-12 relative overflow-hidden">
@@ -135,6 +143,25 @@ function Dashboard() {
           </p>
         </div>
 
+        <div className="grid gap-4 md:grid-cols-4">
+          <div className="theme-card rounded-[1.5rem] p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Live Now</p>
+            <p className="mt-3 text-3xl font-extrabold">{activeNowCount}</p>
+          </div>
+          <div className="theme-card rounded-[1.5rem] p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Tracked Elections</p>
+            <p className="mt-3 text-3xl font-extrabold">{allElections.length}</p>
+          </div>
+          <div className="theme-card rounded-[1.5rem] p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Profiles Loaded</p>
+            <p className="mt-3 text-3xl font-extrabold">{insights?.profileSummary?.totalProfiles ?? 0}</p>
+          </div>
+          <div className="theme-card rounded-[1.5rem] p-5">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Vote Logs</p>
+            <p className="mt-3 text-3xl font-extrabold">{insights?.voteSummary?.totalVotes ?? 0}</p>
+          </div>
+        </div>
+
         {loading ? (
           <div className="flex justify-center items-center py-20">
             <div className="w-12 h-12 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
@@ -145,14 +172,33 @@ function Dashboard() {
             {/* Left Column: Active / Upcoming */}
             <div className="lg:col-span-2 space-y-8">
               
-              <h2 className="text-2xl font-bold flex items-center gap-3">
-                <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
-                Current Status
-              </h2>
+              <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold flex items-center gap-3">
+                    <span className="w-3 h-3 rounded-full bg-green-500 animate-pulse"></span>
+                    Current Status
+                  </h2>
+                  <p className="mt-2 text-sm theme-text-soft">
+                    Search active ballots by title and jump straight into the relevant voting room.
+                  </p>
+                </div>
+                <div className="w-full md:max-w-sm">
+                  <label className="mb-2 block text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">
+                    Search active elections
+                  </label>
+                  <input
+                    type="text"
+                    value={searchTerm}
+                    onChange={(event) => setSearchTerm(event.target.value)}
+                    placeholder="Search by election name"
+                    className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
+                  />
+                </div>
+              </div>
 
-              {allElections.length > 0 ? (
+              {visibleCurrentElections.length > 0 ? (
                 <div className="grid gap-6">
-                  {allElections.map(e => {
+                  {visibleCurrentElections.map(e => {
                     const isActive = currentTime >= e.startTime && currentTime <= e.endTime;
                     return (
                       <div key={e.id} className={`bg-gradient-to-br border p-8 rounded-3xl backdrop-blur-md shadow-2xl relative overflow-hidden group ${isActive ? "from-indigo-900/40 to-slate-900/80 border-indigo-500/30" : "from-slate-800/40 to-slate-900/80 border-slate-700"}`}>
@@ -180,8 +226,8 @@ function Dashboard() {
               ) : (
                 <div className="bg-slate-800/40 border border-slate-700/50 p-8 flex flex-col items-center justify-center text-center rounded-3xl min-h-[300px]">
                   <svg className="w-16 h-16 text-slate-600 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M20 12H4M8 16l-4-4 4-4m12 0l4 4-4 4"></path></svg>
-                  <h3 className="text-2xl font-bold mb-2 text-slate-400">No Parallel Elections</h3>
-                  <p className="text-slate-500 max-w-md">There are currently no ongoing or upcoming elections initialized by the administrator.</p>
+                  <h3 className="text-2xl font-bold mb-2 text-slate-400">No Matching Elections</h3>
+                  <p className="text-slate-500 max-w-md">{allElections.length === 0 ? "There are currently no ongoing or upcoming elections initialized by the administrator." : "No active or upcoming election matches your search right now."}</p>
                 </div>
               )}
             </div>

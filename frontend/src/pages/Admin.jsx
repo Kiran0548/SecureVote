@@ -8,6 +8,12 @@ import { exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { enrichElection, fetchElectionMetadataMap, saveElectionMetadata } from "../utils/electionMetadata";
 import { fetchAllVoterProfiles, maskIdReference, saveVoterProfile, deleteVoterProfile } from "../utils/voterProfile";
 
+function getDefaultDateTimeValue(offsetMinutes = 0) {
+  const date = new Date(Date.now() + offsetMinutes * 60 * 1000);
+  const timezoneOffset = date.getTimezoneOffset() * 60 * 1000;
+  return new Date(date.getTime() - timezoneOffset).toISOString().slice(0, 16);
+}
+
 function Admin() {
   const [account, setAccount] = useState("");
   const [contract, setContract] = useState(null);
@@ -26,7 +32,7 @@ function Admin() {
   const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(false);
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [startTime, setStartTime] = useState("");
+  const [startTime, setStartTime] = useState(() => getDefaultDateTimeValue());
   const [endTime, setEndTime] = useState("");
   const [electionState, setElectionState] = useState(0); // 0: NotStarted, 1: Ongoing, 2: Ended
   const [results, setResults] = useState([]);
@@ -491,7 +497,7 @@ function Admin() {
       alert(`Election created successfully as ID ${createdElectionId}.`);
       setElectionTitle("");
       setCandidates([{ name: "", logoUrl: "", logoFile: null, manifesto: "", videoFile: null }]);
-      setStartTime("");
+      setStartTime(getDefaultDateTimeValue());
       setEndTime("");
       setElectionType("global");
       setDistrict("");

@@ -62,6 +62,9 @@ function Navbar({ theme, onToggleTheme }) {
             <Link to="/dashboard" className="nav-link text-sm font-semibold">
               Dashboard
             </Link>
+            <Link to="/results" className="nav-link text-sm font-semibold">
+              Results
+            </Link>
             <Link to="/vote" className="nav-link text-sm font-semibold">
               Vote
             </Link>

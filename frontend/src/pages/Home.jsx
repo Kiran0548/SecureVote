@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { fetchSystemInsights, topEntries } from "../utils/insights";
 
 const signalItems = [
   { label: "Anonymous", accent: "bg-emerald-500" },
@@ -7,6 +9,39 @@ const signalItems = [
 ];
 
 function Home() {
+  const [insights, setInsights] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+
+    fetchSystemInsights().then((data) => {
+      if (active) {
+        setInsights(data);
+      }
+    });
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const heroStats = [
+    {
+      label: "Votes Logged",
+      value: insights?.voteSummary?.totalVotes ?? "0",
+    },
+    {
+      label: "Approved Profiles",
+      value: insights?.profileSummary?.totalProfiles ?? "0",
+    },
+    {
+      label: "Election Records",
+      value: insights?.metadataSummary?.totalMetadataRecords ?? "0",
+    },
+  ];
+
+  const leadingDistricts = topEntries(insights?.profileSummary?.districtCoverage || {}, 2);
+
   return (
     <div className="relative px-4 pb-20 pt-10 md:px-6 md:pt-16">
       <div className="mx-auto grid max-w-7xl items-center gap-16 lg:grid-cols-[1.15fr_0.85fr]">
@@ -55,10 +90,28 @@ function Home() {
             >
               Explore Live Dashboard
             </Link>
+
+            <Link
+              to="/results"
+              className="theme-secondary-btn inline-flex items-center justify-center rounded-2xl px-7 py-4 text-base font-semibold"
+            >
+              Open Results Explorer
+            </Link>
+          </div>
+
+          <div className="grid gap-4 pt-2 md:grid-cols-3">
+            {heroStats.map((item) => (
+              <div key={item.label} className="theme-card rounded-[1.4rem] px-5 py-5">
+                <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">
+                  {item.label}
+                </p>
+                <p className="mt-3 text-3xl font-extrabold">{item.value}</p>
+              </div>
+            ))}
           </div>
         </section>
 
-        <section className="hero-stage animate-fade-in-up">
+        <section className="hero-stage space-y-6 animate-fade-in-up">
           <div className="hero-wire hidden lg:block" />
 
           <div className="ballot-card">
@@ -123,6 +176,62 @@ function Home() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
               Trusted Vote
+            </div>
+          </div>
+
+          <div className="theme-card rounded-[1.6rem] p-6">
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.24em] theme-text-soft">
+                  Readiness Snapshot
+                </p>
+                <h2 className="mt-2 text-2xl font-extrabold">Election coverage at a glance</h2>
+              </div>
+              <Link to="/results" className="text-sm font-semibold theme-accent">
+                View full explorer
+              </Link>
+            </div>
+
+            <div className="mt-6 grid gap-4 sm:grid-cols-2">
+              <div className="theme-panel rounded-2xl p-4">
+                <p className="text-sm font-semibold theme-text-muted">Unique voters seen</p>
+                <p className="mt-2 text-2xl font-bold">
+                  {insights?.voteSummary?.uniqueVoters ?? 0}
+                </p>
+                <p className="mt-2 text-sm theme-text-soft">
+                  Based on backend vote logs available to the dashboard.
+                </p>
+              </div>
+
+              <div className="theme-panel rounded-2xl p-4">
+                <p className="text-sm font-semibold theme-text-muted">Ward-scoped elections</p>
+                <p className="mt-2 text-2xl font-bold">
+                  {insights?.metadataSummary?.wardScopedElections ?? 0}
+                </p>
+                <p className="mt-2 text-sm theme-text-soft">
+                  Local ballots that use district and ward eligibility rules.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6">
+              <p className="text-sm font-semibold theme-text-muted">Top district coverage</p>
+              <div className="mt-3 flex flex-wrap gap-3">
+                {leadingDistricts.length > 0 ? (
+                  leadingDistricts.map(([district, count]) => (
+                    <span key={district} className="signal-chip text-sm font-semibold">
+                      {district}
+                      <span className="rounded-full bg-indigo-500/15 px-2 py-0.5 text-xs text-indigo-300">
+                        {count}
+                      </span>
+                    </span>
+                  ))
+                ) : (
+                  <span className="theme-text-soft text-sm">
+                    District coverage will appear here once voter profiles are added.
+                  </span>
+                )}
+              </div>
             </div>
           </div>
         </section>

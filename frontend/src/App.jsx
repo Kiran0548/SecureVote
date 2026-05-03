@@ -1,11 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/navbar";
-import Home from "./pages/Home";
-import Dashboard from "./pages/Dashboard";
-import Vote from "./pages/Vote";
-import Verify from "./pages/Verify";
-import Admin from "./pages/Admin";
+
+const Home = lazy(() => import("./pages/Home"));
+const Dashboard = lazy(() => import("./pages/Dashboard"));
+const Vote = lazy(() => import("./pages/Vote"));
+const Verify = lazy(() => import("./pages/Verify"));
+const Admin = lazy(() => import("./pages/Admin"));
+const Result = lazy(() => import("./pages/Result"));
 
 function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem("securevote-theme") || "dark");
@@ -30,13 +32,16 @@ function App() {
 
         <div className="theme-shell relative z-10">
           <Navbar theme={theme} onToggleTheme={toggleTheme} />
-          <Routes>
-            <Route path="/" element={<Home theme={theme} />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/vote" element={<Vote />} />
-            <Route path="/verify" element={<Verify />} />
-            <Route path="/admin" element={<Admin />} />
-          </Routes>
+          <Suspense fallback={<div className="px-6 py-16 text-center theme-text-muted">Loading SecureVote...</div>}>
+            <Routes>
+              <Route path="/" element={<Home theme={theme} />} />
+              <Route path="/dashboard" element={<Dashboard />} />
+              <Route path="/results" element={<Result />} />
+              <Route path="/vote" element={<Vote />} />
+              <Route path="/verify" element={<Verify />} />
+              <Route path="/admin" element={<Admin />} />
+            </Routes>
+          </Suspense>
         </div>
       </div>
     </Router>
