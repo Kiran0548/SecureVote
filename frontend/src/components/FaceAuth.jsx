@@ -10,11 +10,11 @@ const FaceAuth = ({ onVerified, account }) => {
   const [error, setError] = useState("");
   const [matcher, setMatcher] = useState(null);
   const { t } = useLanguage();
-  const [statusMsg, setStatusMsg] = useState("");
+  const [statusKey, setStatusKey] = useState("faceAuth.initialStatus");
 
   useEffect(() => {
-    setStatusMsg(t("faceAuth.initialStatus"));
-  }, [t]);
+    setStatusKey("faceAuth.initialStatus");
+  }, []);
 
   useEffect(() => {
     const loadModels = async () => {
@@ -67,15 +67,15 @@ const FaceAuth = ({ onVerified, account }) => {
       if (detections) {
         const bestMatch = matcher.findBestMatch(detections.descriptor);
         if (bestMatch.label !== 'unknown') {
-          setStatusMsg(t("faceAuth.verified"));
+          setStatusKey("faceAuth.verified");
           setScanning(false);
           setTimeout(() => onVerified(), 1000);
           return;
         } else {
-          setStatusMsg(t("faceAuth.mismatch"));
+          setStatusKey("faceAuth.mismatch");
         }
       } else {
-        setStatusMsg(t("faceAuth.scanning"));
+        setStatusKey("faceAuth.scanning");
       }
       
       if (scanning) {
@@ -98,8 +98,8 @@ const FaceAuth = ({ onVerified, account }) => {
       <h2 className="text-2xl font-bold mb-4 text-white">{t("faceAuth.title")}</h2>
       
       {!error && (
-        <p className={`text-center mb-6 font-medium ${statusMsg.includes("does not match") ? "text-red-400" : statusMsg.includes("Verified") ? "text-green-400" : "text-slate-400"}`}>
-          {statusMsg}
+        <p className={`text-center mb-6 font-medium ${statusKey === "faceAuth.mismatch" ? "text-red-400" : statusKey === "faceAuth.verified" ? "text-green-400" : "text-slate-400"}`}>
+          {t(statusKey)}
         </p>
       )}
 
@@ -134,10 +134,10 @@ const FaceAuth = ({ onVerified, account }) => {
 
       {!scanning && modelsLoaded && !error ? (
         <button
-          onClick={() => { setScanning(true); setStatusMsg(t("faceAuth.scanning")); }}
+          onClick={() => { setScanning(true); setStatusKey("faceAuth.scanning"); }}
           className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-6 rounded-xl transition-all"
         >
-          {statusMsg === t("faceAuth.verified") ? t("faceAuth.verified") : t("faceAuth.retry")}
+          {statusKey === "faceAuth.verified" ? t("faceAuth.verified") : t("faceAuth.retry")}
         </button>
       ) : (
         <div className="h-10"></div>

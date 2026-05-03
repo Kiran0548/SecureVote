@@ -9,8 +9,8 @@ function formatElectionType(type) {
   return type;
 }
 
-function formatDate(timestamp) {
-  if (!timestamp) return "Not scheduled";
+function formatDate(timestamp, fallback) {
+  if (!timestamp) return fallback;
   return new Date(timestamp * 1000).toLocaleString();
 }
 
@@ -291,11 +291,11 @@ function Result() {
                     <div className="grid gap-3 sm:grid-cols-2">
                       <div className="theme-panel rounded-2xl px-4 py-4">
                         <p className="text-xs font-bold uppercase tracking-[0.18em] theme-text-soft">{t("results.starts")}</p>
-                        <p className="mt-2 text-sm font-semibold">{formatDate(selectedElection.startTime)}</p>
+                        <p className="mt-2 text-sm font-semibold">{formatDate(selectedElection.startTime, t("common.notScheduled"))}</p>
                       </div>
                       <div className="theme-panel rounded-2xl px-4 py-4">
                         <p className="text-xs font-bold uppercase tracking-[0.18em] theme-text-soft">{t("results.ends")}</p>
-                        <p className="mt-2 text-sm font-semibold">{formatDate(selectedElection.endTime)}</p>
+                        <p className="mt-2 text-sm font-semibold">{formatDate(selectedElection.endTime, t("common.notScheduled"))}</p>
                       </div>
                     </div>
                   </div>

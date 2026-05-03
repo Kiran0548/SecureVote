@@ -12,7 +12,7 @@ function Verify() {
 
   const verifyTransaction = async () => {
     if (!txHash || txHash.length !== 66 || !txHash.startsWith("0x")) {
-      setError("Please enter a valid 66-character transaction hash starting with 0x.");
+      setError(t("verify.invalidHash"));
       return;
     }
 
@@ -26,7 +26,7 @@ function Verify() {
       if (window.ethereum) {
         provider = new ethers.BrowserProvider(window.ethereum);
       } else {
-        setError("MetaMask is required to interact with the blockchain.");
+        setError(t("verify.metamaskRequired"));
         setLoading(false);
         return;
       }
@@ -36,7 +36,7 @@ function Verify() {
       const tx = await provider.getTransaction(txHash);
 
       if (!receipt || !tx) {
-        setError("Transaction not found on the blockchain. Are you on the correct network?");
+        setError(t("verify.txNotFound"));
         setLoading(false);
         return;
       }
@@ -60,11 +60,11 @@ function Verify() {
           status: "FAILED",
           blockNumber: receipt.blockNumber,
         });
-        setError("This transaction reverted/failed on the blockchain.");
+        setError(t("verify.txFailed"));
       }
     } catch (err) {
       console.error(err);
-      setError("Failed to verify. Error: " + err.message);
+      setError(t("verify.verifyFailed", { message: err.message }));
     } finally {
       setLoading(false);
     }
@@ -118,36 +118,36 @@ function Verify() {
                 <div className="w-20 h-20 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-6 relative">
                   <svg className="w-10 h-10 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
                   {verificationResult.isSecureVote && (
-                    <div className="absolute -bottom-1 -right-1 bg-indigo-600 border-2 border-slate-900 text-white rounded-full p-1.5 shadow-lg" title="Verified SecureVote Transaction">
+                      <div className="absolute -bottom-1 -right-1 bg-indigo-600 border-2 border-slate-900 text-white rounded-full p-1.5 shadow-lg" title={t("verify.officialTitle")}>
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.64.304 1.24.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd"></path></svg>
                     </div>
                   )}
                 </div>
-                <h2 className="text-3xl font-extrabold text-green-400 mb-2">VOTE INCLUDED IN TALLY</h2>
+                <h2 className="text-3xl font-extrabold text-green-400 mb-2">{t("verify.voteIncluded")}</h2>
                 <div className="flex items-center justify-center gap-2 mb-8">
-                  <p className="text-slate-300 font-medium">This transaction hash is permanently verified on the blockchain.</p>
+                  <p className="text-slate-300 font-medium">{t("verify.voteIncludedBody")}</p>
                   {verificationResult.isSecureVote && (
                     <span className="bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider">
-                      SecureVote Official
+                      {t("verify.official")}
                     </span>
                   )}
                 </div>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
                   <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
-                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">Block Number</span>
+                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">{t("verify.blockNumber")}</span>
                     <span className="font-mono text-white text-xl">{verificationResult.blockNumber}</span>
                   </div>
                   <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
-                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">Gas Used</span>
-                    <span className="font-mono text-white text-xl">{verificationResult.gasUsed} Wei</span>
+                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">{t("verify.gasUsed")}</span>
+                    <span className="font-mono text-white text-xl">{verificationResult.gasUsed} {t("verify.wei")}</span>
                   </div>
                   <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-700/50 md:col-span-2 overflow-hidden hover:border-indigo-500/30 transition-colors">
-                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">Voter Address (From)</span>
+                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">{t("verify.voterAddress")}</span>
                     <span className="font-mono text-slate-300 text-sm md:text-base break-all">{verificationResult.from}</span>
                   </div>
                   <div className="bg-slate-900/60 p-5 rounded-2xl border border-slate-700/50 md:col-span-2 overflow-hidden hover:border-indigo-500/30 transition-colors">
-                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">Contract Processed (To)</span>
+                    <span className="block text-xs text-indigo-400 uppercase font-bold mb-1 tracking-wider">{t("verify.contractProcessed")}</span>
                     <span className="font-mono text-green-300 text-sm md:text-base break-all">{verificationResult.contractInteracted}</span>
                   </div>
                 </div>

@@ -4,9 +4,9 @@ import { fetchSystemInsights, topEntries } from "../utils/insights";
 import { useLanguage } from "../utils/i18n";
 
 const signalItems = [
-  { label: "Anonymous", accent: "bg-emerald-500" },
-  { label: "Verified", accent: "bg-sky-500" },
-  { label: "On-chain", accent: "bg-indigo-500" },
+  { key: "home.signalAnonymous", accent: "bg-emerald-500" },
+  { key: "home.signalVerified", accent: "bg-sky-500" },
+  { key: "home.signalOnChain", accent: "bg-indigo-500" },
 ];
 
 function Home() {
@@ -67,9 +67,9 @@ function Home() {
 
           <div className="flex flex-wrap gap-3">
             {signalItems.map((item) => (
-              <span key={item.label} className="signal-chip text-sm font-semibold">
+              <span key={item.key} className="signal-chip text-sm font-semibold">
                 <span className={`h-2.5 w-2.5 rounded-full ${item.accent}`} />
-                {item.label}
+                {t(item.key)}
               </span>
             ))}
           </div>
@@ -103,7 +103,7 @@ function Home() {
               to="/register"
               className="theme-secondary-btn inline-flex items-center justify-center rounded-2xl px-7 py-4 text-base font-semibold"
             >
-              Register as Voter
+              {t("home.registerButton")}
             </Link>
           </div>
 
@@ -128,23 +128,23 @@ function Home() {
             <div className="ballot-sheet">
               <div className="mb-4 flex items-center justify-between">
                 <div>
-                  <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">
-                    Secure Ballot
+                    <p className="text-xs font-bold uppercase tracking-[0.28em] text-slate-500">
+                    {t("home.ballotLabel")}
                   </p>
                   <h2 className="mt-1 text-2xl font-extrabold text-slate-900">
-                    Election Access Pass
+                    {t("home.ballotTitle")}
                   </h2>
                 </div>
                 <div className="rounded-full bg-indigo-100 px-3 py-1 text-xs font-bold text-indigo-700">
-                  Booth Open
+                  {t("home.boothOpen")}
                 </div>
               </div>
 
               <div className="space-y-1">
                 <div className="ballot-row">
                   <div>
-                    <p className="font-bold text-slate-900">Face Authentication</p>
-                    <p className="text-sm text-slate-500">One voter. One verified entry.</p>
+                    <p className="font-bold text-slate-900">{t("home.faceAuthTitle")}</p>
+                    <p className="text-sm text-slate-500">{t("home.faceAuthBody")}</p>
                   </div>
                   <div className="ballot-check">
                     <svg className="h-4 w-4 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,8 +155,8 @@ function Home() {
 
                 <div className="ballot-row">
                   <div>
-                    <p className="font-bold text-slate-900">Anonymous Proof</p>
-                    <p className="text-sm text-slate-500">Identity protected with zero knowledge.</p>
+                    <p className="font-bold text-slate-900">{t("home.proofTitle")}</p>
+                    <p className="text-sm text-slate-500">{t("home.proofBody")}</p>
                   </div>
                   <div className="ballot-check">
                     <svg className="h-4 w-4 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -167,8 +167,8 @@ function Home() {
 
                 <div className="ballot-row">
                   <div>
-                    <p className="font-bold text-slate-900">Blockchain Receipt</p>
-                    <p className="text-sm text-slate-500">Every valid vote stays publicly auditable.</p>
+                    <p className="font-bold text-slate-900">{t("home.receiptTitle")}</p>
+                    <p className="text-sm text-slate-500">{t("home.receiptBody")}</p>
                   </div>
                   <div className="ballot-check">
                     <svg className="h-4 w-4 text-indigo-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -183,7 +183,7 @@ function Home() {
               <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
               </svg>
-              Trusted Vote
+              {t("home.trustedVote")}
             </div>
           </div>
 

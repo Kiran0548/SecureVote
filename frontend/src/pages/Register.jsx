@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { maskIdReference } from "../utils/voterProfile";
 import { defaultVoterApplication, submitVoterApplication } from "../utils/voterApplications";
+import { useLanguage } from "../utils/i18n";
 
 function readFileAsDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -59,6 +60,7 @@ function Register() {
   const [message, setMessage] = useState("");
   const [messageType, setMessageType] = useState("info");
   const [photoPreview, setPhotoPreview] = useState("");
+  const { t } = useLanguage();
 
   useEffect(() => {
     const loadWallet = async () => {
@@ -96,7 +98,7 @@ function Register() {
       handleChange("photoDataUrl", result);
     } catch (error) {
       setMessageType("error");
-      setMessage(error.message || "Unable to process the selected photo.");
+      setMessage(error.message || t("register.fileProcessError"));
       setPhotoPreview("");
       handleChange("photoDataUrl", "");
     }
@@ -104,7 +106,7 @@ function Register() {
 
   const connectWallet = async () => {
     if (!window.ethereum) {
-      alert("Please install MetaMask to continue.");
+      alert(t("register.walletInstall"));
       return;
     }
 
@@ -130,7 +132,7 @@ function Register() {
       });
 
       setMessageType("success");
-      setMessage("Application submitted successfully. The admin can now review and approve it.");
+      setMessage(t("register.submitSuccess"));
       setForm((current) => ({
         ...defaultVoterApplication,
         walletAddress: current.walletAddress,
@@ -150,13 +152,13 @@ function Register() {
         <section className="theme-card rounded-[2rem] px-6 py-10 md:px-10">
           <div className="max-w-2xl space-y-4">
             <div className="inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] theme-text-muted">
-              Voter Registration
+              {t("register.badge")}
             </div>
             <h1 className="app-title text-4xl font-extrabold tracking-tight md:text-5xl">
-              Apply for ballot access
+              {t("register.title")}
             </h1>
             <p className="text-lg theme-text-muted">
-              Submit your voter details for admin review. Once approved, your profile is created automatically in the backend and the admin can proceed with blockchain whitelisting.
+              {t("register.subtitle")}
             </p>
           </div>
         </section>
@@ -164,9 +166,9 @@ function Register() {
         <section className="theme-card rounded-[1.8rem] p-6 md:p-8">
           <div className="mb-6 flex flex-col gap-4 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4 md:flex-row md:items-center md:justify-between">
             <div>
-              <p className="text-sm font-semibold">Connected wallet</p>
+              <p className="text-sm font-semibold">{t("register.connectedWallet")}</p>
               <p className="mt-1 font-mono text-sm theme-text-soft">
-                {form.walletAddress || "No wallet connected"}
+                {form.walletAddress || t("register.noWalletConnected")}
               </p>
             </div>
             <button
@@ -174,7 +176,7 @@ function Register() {
               onClick={connectWallet}
               className="theme-secondary-btn rounded-2xl px-5 py-3 text-sm font-semibold"
             >
-              {form.walletAddress ? "Change Wallet" : "Connect Wallet"}
+              {form.walletAddress ? t("register.changeWallet") : t("register.connectWallet")}
             </button>
           </div>
 
@@ -191,20 +193,20 @@ function Register() {
           <form onSubmit={handleSubmit} className="space-y-5">
             <div className="grid gap-5 md:grid-cols-2">
               <label className="space-y-2">
-                <span className="text-sm font-semibold">Registration Type</span>
+                <span className="text-sm font-semibold">{t("register.typeLabel")}</span>
                 <select
                   value={form.registrationType}
                   onChange={(event) => handleChange("registrationType", event.target.value)}
                   className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
                   required
                 >
-                  <option value="GENERAL">General Election</option>
-                  <option value="WARD_BASED">Ward-Based Election</option>
+                  <option value="GENERAL">{t("common.registrationTypeGeneral")}</option>
+                  <option value="WARD_BASED">{t("common.registrationTypeWard")}</option>
                 </select>
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-semibold">Full Name</span>
+                <span className="text-sm font-semibold">{t("register.fullName")}</span>
                 <input
                   type="text"
                   value={form.fullName}
@@ -215,7 +217,7 @@ function Register() {
               </label>
 
               <label className="space-y-2">
-                <span className="text-sm font-semibold">Wallet Address</span>
+                <span className="text-sm font-semibold">{t("register.walletAddress")}</span>
                 <input
                   type="text"
                   value={form.walletAddress}
@@ -228,7 +230,7 @@ function Register() {
               {form.registrationType === "WARD_BASED" ? (
                 <>
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold">District</span>
+                    <span className="text-sm font-semibold">{t("register.district")}</span>
                     <input
                       type="text"
                       value={form.district}
@@ -239,7 +241,7 @@ function Register() {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold">Local Body / Panchayat</span>
+                    <span className="text-sm font-semibold">{t("register.localBody")}</span>
                     <input
                       type="text"
                       value={form.localBody}
@@ -250,7 +252,7 @@ function Register() {
                   </label>
 
                   <label className="space-y-2">
-                    <span className="text-sm font-semibold">Ward Number</span>
+                    <span className="text-sm font-semibold">{t("register.wardNumber")}</span>
                     <input
                       type="text"
                       value={form.wardNumber}
@@ -263,31 +265,31 @@ function Register() {
               ) : null}
 
               <label className="space-y-2">
-                <span className="text-sm font-semibold">ID Reference</span>
+                <span className="text-sm font-semibold">{t("register.idReference")}</span>
                 <input
                   type="text"
                   value={form.idReferenceMasked}
                   onChange={(event) => handleChange("idReferenceMasked", event.target.value)}
                   className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
-                  placeholder="e.g. Aadhaar last 4 digits"
+                  placeholder={t("register.idReferencePlaceholder")}
                   required
                 />
               </label>
             </div>
 
             <label className="space-y-2">
-              <span className="text-sm font-semibold">ID Proof Link or File Path</span>
+              <span className="text-sm font-semibold">{t("register.idProofLabel")}</span>
               <input
                 type="text"
                 value={form.idProofPath}
                 onChange={(event) => handleChange("idProofPath", event.target.value)}
                 className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
-                placeholder="Paste a drive link, IPFS URL, or local reference"
+                placeholder={t("register.idProofPlaceholder")}
               />
             </label>
 
             <label className="space-y-2">
-              <span className="text-sm font-semibold">Voter Photo</span>
+              <span className="text-sm font-semibold">{t("register.voterPhoto")}</span>
               <input
                 type="file"
                 accept="image/*"
@@ -299,7 +301,7 @@ function Register() {
 
             {photoPreview ? (
               <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4">
-                <p className="mb-3 text-sm font-semibold">Photo Preview</p>
+                <p className="mb-3 text-sm font-semibold">{t("register.photoPreview")}</p>
                 <img
                   src={photoPreview}
                   alt="Voter preview"
@@ -313,7 +315,7 @@ function Register() {
               disabled={submitting || !form.photoDataUrl}
               className="theme-primary-btn rounded-2xl px-6 py-3 text-sm font-bold disabled:opacity-60"
             >
-              {submitting ? "Submitting..." : "Submit Application"}
+              {submitting ? t("register.submitting") : t("register.submit")}
             </button>
           </form>
         </section>

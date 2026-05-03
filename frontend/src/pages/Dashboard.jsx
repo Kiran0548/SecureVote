@@ -207,19 +207,21 @@ function Dashboard() {
                         <div className="absolute top-0 right-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] group-hover:bg-indigo-500/20 transition-all duration-500"></div>
                         
                         <div className={`inline-block px-4 py-1.5 rounded-full text-sm font-semibold mb-6 border ${isActive ? "bg-green-500/20 border-green-500/50 text-green-400" : "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"}`}>
-                          {isActive ? "Active Election" : "Upcoming"}
+                          {isActive ? t("dashboard.activeElection") : t("dashboard.upcoming")}
                         </div>
                         <h3 className="text-3xl font-bold mb-2">{e.title}</h3>
                         <p className="text-slate-300 mb-8 max-w-lg leading-relaxed">
-                          {isActive ? "The polls are currently open! Cast your secure vote now." : "This election has not started yet. Mark your calendar."}
+                          {isActive ? t("dashboard.activeDescription") : t("dashboard.upcomingDescription")}
                           <br/><br/>
                           <span className="text-indigo-300 font-medium">
-                            {isActive ? `Closes: ${new Date(e.endTime * 1000).toLocaleString()}` : `Starts: ${new Date(e.startTime * 1000).toLocaleString()}`}
+                            {isActive
+                              ? t("dashboard.closes", { time: new Date(e.endTime * 1000).toLocaleString() })
+                              : t("dashboard.starts", { time: new Date(e.startTime * 1000).toLocaleString() })}
                           </span>
                         </p>
 
                         <Link to="/vote" className={`inline-flex items-center justify-center px-8 py-4 font-bold text-white transition-all bg-indigo-600 rounded-xl hover:bg-indigo-500 hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] ${!isActive && "opacity-50 cursor-not-allowed pointer-events-none"}`}>
-                          {isActive ? "Enter Voting Booth" : "Booth Closed"}
+                          {isActive ? t("dashboard.enterBooth") : t("dashboard.boothClosed")}
                         </Link>
                       </div>
                     );
@@ -246,7 +248,7 @@ function Dashboard() {
                     onClick={() => setShowAllPastElections((prev) => !prev)}
                     className="rounded-full border border-slate-600 bg-slate-800/80 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:border-purple-400/50 hover:text-white"
                   >
-                    {showAllPastElections ? "Show Latest 3" : "View All"}
+                    {showAllPastElections ? t("dashboard.showLatestThree") : t("dashboard.viewAll")}
                   </button>
                 )}
               </div>
@@ -257,22 +259,22 @@ function Dashboard() {
                   {(electionState === 2 || isTimeUp) && (
                     <div className="bg-purple-900/20 border border-purple-500/30 p-5 rounded-2xl">
                       <div className="text-xs font-bold text-purple-400 uppercase tracking-wider mb-1">Current Cycle Concluded</div>
-                      <h4 className="text-xl font-bold text-white mb-2">Results are Live</h4>
-                      <p className="text-slate-400 text-sm">View the main dashboard panel for complete analytics and the declared winner of this election cycle.</p>
+                      <h4 className="text-xl font-bold text-white mb-2">{t("dashboard.resultsLive")}</h4>
+                      <p className="text-slate-400 text-sm">{t("dashboard.resultsLiveHint")}</p>
                     </div>
                   )}
 
                   {/* Historical Elections from Smart Contract */}
                   {pastElections.length === 0 && electionState !== 2 && !isTimeUp ? (
-                    <p className="text-slate-500 text-center py-10">No historical records available.</p>
+                    <p className="text-slate-500 text-center py-10">{t("dashboard.noHistoricalRecords")}</p>
                   ) : (
                     visiblePastElections.map((election, idx) => (
                       <div key={idx} className="bg-slate-900/60 border border-slate-700/50 p-5 rounded-2xl hover:border-slate-500/50 transition-colors">
-                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Election #{election.id}: {election.title}</div>
-                        <h4 className="text-lg font-bold text-white mb-1">Winner: {election.winnerName}</h4>
+                        <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">{t("dashboard.electionNumber", { id: election.id, title: election.title })}</div>
+                        <h4 className="text-lg font-bold text-white mb-1">{t("dashboard.winner", { name: election.winnerName })}</h4>
                         <div className="flex justify-between items-center mt-3 text-sm">
                           <span className="text-green-400 font-medium">{election.winnerVotes} Votes</span>
-                          <span className="text-slate-500">{election.totalVotes} Total</span>
+                          <span className="text-slate-500">{t("dashboard.totalVotesSummary", { votes: election.totalVotes })}</span>
                         </div>
                         {/* Simple progress bar */}
                         <div className="w-full bg-slate-800 rounded-full h-1.5 mt-3 overflow-hidden">

@@ -9,6 +9,8 @@ import { Group } from "@semaphore-protocol/group";
 import { generateProof } from "@semaphore-protocol/proof";
 import { enrichElection, fetchElectionMetadataMap } from "../utils/electionMetadata";
 import { defaultVoterProfile, fetchVoterProfile, getVoterEligibilityReason, isVoterEligibleForElection } from "../utils/voterProfile";
+import { createVoteLog } from "../utils/voteLogs";
+import { useLanguage } from "../utils/i18n";
 
 function Vote() {
   const [account, setAccount] = useState("");
@@ -43,6 +45,7 @@ function Vote() {
   const [localBodyFilter, setLocalBodyFilter] = useState("");
   const [wardSearch, setWardSearch] = useState("");
   const [voterProfile, setVoterProfile] = useState(defaultVoterProfile);
+  const { t } = useLanguage();
 
   useEffect(() => {
     init();
@@ -76,7 +79,7 @@ function Vote() {
 
   const ensureContract = async () => {
     if (!window.ethereum) {
-      alert("MetaMask extension not found. Please install it to participate.");
+      alert(t("vote.walletMissing"));
       return null;
     }
     try {
@@ -223,7 +226,7 @@ function Vote() {
 
   const selectElection = (election) => {
     const eligibilityReason = election?.onChainEligible === false
-      ? "Your current on-chain ward profile does not match this election. Please contact the administrator to update your ward assignment."
+      ? t("vote.wardDetailsMissing")
       : getVoterEligibilityReason(voterProfile, election);
     if (eligibilityReason) {
       alert(eligibilityReason);
@@ -242,51 +245,51 @@ function Vote() {
 
   const getInstructionText = () => {
     if (!account) {
-      return "Please connect your Web3 wallet first to continue to the voting process.";
+      return t("vote.noAccountInstruction");
     }
 
     if (!isWhitelisted) {
-      return "Your wallet is not approved for this election yet. Please contact the election administrator for help.";
+      return t("vote.notApprovedInstruction");
     }
 
     if (!selectedElectionId) {
       if (allElections.length === 0) {
-        return "There are no active elections right now. Please come back later or contact the administrator.";
+        return t("vote.noElectionAvailableInstruction");
       }
 
-      return "Please choose an active election from the list. After selecting it, you can continue with identity verification and voting.";
+      return t("vote.noElectionInstruction");
     }
 
     if (electionState === 0) {
-      return `The election ${selectedElectionTitle} has not been initialized yet. Please wait for the administrator.`;
+      return t("vote.notInitializedInstruction", { title: selectedElectionTitle });
     }
 
     if (electionState === 2) {
-      return `The election ${selectedElectionTitle} has already ended. Please check the results dashboard.`;
+      return t("vote.endedInstruction", { title: selectedElectionTitle });
     }
 
     if (!isVotingActive && currentTime < startTime) {
-      return `The election ${selectedElectionTitle} has not started yet. Please return when the voting time begins.`;
+      return t("vote.notStartedInstruction", { title: selectedElectionTitle });
     }
 
     if (!isVotingActive && currentTime > endTime) {
-      return `Voting for ${selectedElectionTitle} has ended. Please wait for the final result publication.`;
+      return t("vote.finalResultInstruction", { title: selectedElectionTitle });
     }
 
     if (!biometricsVerified) {
-      return `Step 1. Complete biometric verification by looking directly at the camera until your identity is confirmed.`;
+      return t("vote.biometricInstruction");
     }
 
     if (!hasRegisteredIdentity) {
-      return "Step 2. Generate your anonymous identity. This keeps your vote private while proving you are an approved voter.";
+      return t("vote.identityInstruction");
     }
 
-    return `Step 3. Review the candidates for ${selectedElectionTitle}, open the candidate profile you prefer, and cast your vote securely.`;
+    return t("vote.candidateInstruction", { title: selectedElectionTitle });
   };
 
   const speakInstructions = () => {
     if (!speechSupported) {
-      alert("Text-to-speech is not supported in this browser.");
+      alert(t("vote.speechUnsupported"));
       return;
     }
 
@@ -320,7 +323,7 @@ function Vote() {
         setModalManifesto(data.text || data.pinataContent?.text || "");
       } catch (err) {
         console.error("Failed to load manifesto:", err);
-        setModalManifesto("Failed to load candidate manifesto.");
+        setModalManifesto(t("vote.manifestoLoadFailed"));
       } finally {
         setLoadingManifesto(false);
       }
@@ -344,10 +347,10 @@ function Vote() {
       const tx = await sc.registerIdentity(identity.commitment);
       
       setHasRegisteredIdentity(true);
-      alert("Anonymous Identity Reg. transaction submitted!");
+      alert(t("vote.identitySubmitted"));
     } catch (err) {
       console.error(err);
-      alert("Registration failed: " + (err.reason || err.message));
+      alert(t("vote.registrationFailed", { message: err.reason || err.message }));
     } finally {
       setLoading(false);
     }
@@ -356,19 +359,20 @@ function Vote() {
   const voteCandidate = async (candidateId) => {
     if (!contract) return;
     if (!identityString) {
-      alert("Anonymous identity not found! Please register first.");
+      alert(t("vote.identityNotFound"));
       return;
     }
     if (!selectedElection || selectedElection.onChainEligible === false || !isVoterEligibleForElection(voterProfile, selectedElection)) {
       const reason = selectedElection?.onChainEligible === false
-        ? "Your current on-chain ward profile does not match this election. Please contact the administrator to update your ward assignment."
+        ? t("vote.wardDetailsMissing")
         : getVoterEligibilityReason(voterProfile, selectedElection);
-      alert(reason || "You are not eligible for this election.");
+      alert(reason || t("vote.ineligible"));
       return;
     }
     
     try {
       setLoading(true);
+      const candidateName = candidates[candidateId]?.name || `Candidate #${candidateId + 1}`;
       
       // 1. Recover Identity from local storage
       const identity = new Identity(identityString);
@@ -416,6 +420,14 @@ function Vote() {
          scope: fullProof.scope,
          points: fullProof.points
       });
+
+      const persistVoteLog = async () => {
+        await createVoteLog({
+          voter: account,
+          candidate: candidateName,
+          electionId: selectedElectionId,
+        });
+      };
       
       // Wait for transaction confirmation, fallback to delayed refetch if RPC rate-limits
       let receipt = null;
@@ -427,7 +439,7 @@ function Vote() {
       
       setReceiptData({
         hash: tx.hash,
-        blockNumber: receipt ? receipt.blockNumber.toString() : "Pending...",
+        blockNumber: receipt ? receipt.blockNumber.toString() : t("vote.receiptPending"),
         timestamp: new Date().toLocaleString(),
         from: account,
         to: contractAddress
@@ -437,12 +449,18 @@ function Vote() {
       
       if (receipt) {
         // Transaction confirmed — fetch updated counts immediately
+        await persistVoteLog();
         await fetchCandidates(contract, selectedElectionId);
         await init();
       } else {
         // Transaction submitted but not yet confirmed — retry after delay
         setTimeout(async () => {
           try {
+            const provider = new ethers.BrowserProvider(window.ethereum);
+            const delayedReceipt = await provider.getTransactionReceipt(tx.hash);
+            if (delayedReceipt?.status === 1) {
+              await persistVoteLog();
+            }
             await fetchCandidates(contract, selectedElectionId);
             await init();
           } catch (e) {
@@ -483,7 +501,7 @@ function Vote() {
       pdf.save(`SecureVote_Receipt_${receiptData.hash.substring(0,8)}.pdf`);
     } catch (err) {
       console.error(err);
-      alert("Failed to generate PDF receipt.");
+      alert(t("vote.receiptFailed"));
     }
   };
 
@@ -521,7 +539,7 @@ function Vote() {
     return true;
   });
   const selectedElectionEligibilityReason = selectedElection?.onChainEligible === false
-    ? "Your current on-chain ward profile does not match this election. Please contact the administrator to update your ward assignment."
+    ? t("vote.wardDetailsMissing")
     : getVoterEligibilityReason(voterProfile, selectedElection);
   const isVotingActive = electionState === 1 && currentTime >= startTime && currentTime <= endTime;
 
@@ -529,21 +547,21 @@ function Vote() {
     <div className="max-w-4xl mx-auto px-4 py-12">
       <div className="theme-card vote-page-hero mb-12 rounded-[2rem] px-6 py-10 text-center animate-fade-in-up md:px-10">
         <div className="mx-auto mb-4 inline-flex items-center gap-2 rounded-full border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-2 text-xs font-bold uppercase tracking-[0.28em] theme-text-muted">
-          Secure voting booth
+          {t("vote.badge")}
         </div>
-        <h1 className="app-title mb-4 text-4xl font-bold md:text-5xl">Election Booth</h1>
-        <p className="text-slate-400">Cast your vote securely on the blockchain.</p>
+        <h1 className="app-title mb-4 text-4xl font-bold md:text-5xl">{t("vote.title")}</h1>
+        <p className="text-slate-400">{t("vote.subtitle")}</p>
       </div>
 
       <div className="theme-panel mb-8 rounded-2xl border border-[var(--border-soft)] p-5 md:p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 rounded-full bg-[var(--surface-soft)] px-3 py-1 text-xs font-bold uppercase tracking-[0.22em] theme-accent">
-              Accessibility Assist
+              {t("vote.assistBadge")}
             </div>
-            <h2 className="text-xl font-bold">Voice guidance for low-vision voters</h2>
+            <h2 className="text-xl font-bold">{t("vote.assistTitle")}</h2>
             <p className="theme-text-muted">
-              Tap play to hear the current voting instructions aloud based on your progress in the booth.
+              {t("vote.assistBody")}
             </p>
           </div>
 
@@ -554,7 +572,7 @@ function Vote() {
               disabled={!speechSupported}
               className="theme-primary-btn rounded-xl px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isSpeaking ? "Replay Instructions" : "Read Instructions Aloud"}
+              {isSpeaking ? t("vote.replayInstructions") : t("vote.readInstructions")}
             </button>
             <button
               type="button"
@@ -562,13 +580,13 @@ function Vote() {
               disabled={!speechSupported || !isSpeaking}
               className="theme-secondary-btn rounded-xl px-5 py-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Stop Audio
+              {t("vote.stopAudio")}
             </button>
           </div>
         </div>
 
         <div className="mt-4 rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-3)] px-4 py-4">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Current spoken guidance</p>
+          <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">{t("vote.currentGuidance")}</p>
           <p className="mt-2 text-sm leading-7 theme-text-muted" aria-live="polite">
             {getInstructionText()}
           </p>
@@ -579,17 +597,17 @@ function Vote() {
         <div className="theme-panel mb-8 rounded-2xl border border-[var(--border-soft)] p-5 md:p-6">
           <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
             <div>
-              <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">Verified voter profile</p>
-              <h2 className="mt-2 text-xl font-bold text-white">{voterProfile.fullName || "Profile on file"}</h2>
+              <p className="text-xs font-bold uppercase tracking-[0.22em] theme-text-soft">{t("vote.verifiedProfile")}</p>
+              <h2 className="mt-2 text-xl font-bold text-white">{voterProfile.fullName || t("vote.profileOnFile")}</h2>
               <p className="mt-2 text-sm theme-text-muted">
                 {voterProfile.district && voterProfile.localBody && voterProfile.wardNumber
-                  ? `${voterProfile.district} / ${voterProfile.localBody} / Ward ${voterProfile.wardNumber}`
-                  : "Ward details are missing from your profile. Contact the administrator before joining ward-based elections."}
+                  ? `${voterProfile.district} / ${voterProfile.localBody} / ${t("common.wardLabel", { ward: voterProfile.wardNumber })}`
+                  : t("vote.wardDetailsMissing")}
               </p>
             </div>
             {voterProfile.idReferenceMasked && (
               <div className="rounded-xl border border-slate-700 bg-slate-900/40 px-4 py-3 text-sm text-slate-300">
-                ID Ref: {voterProfile.idReferenceMasked}
+                {t("vote.idRef", { value: voterProfile.idReferenceMasked })}
               </div>
             )}
           </div>
@@ -599,13 +617,13 @@ function Vote() {
       {!account ? (
         <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl text-center backdrop-blur-sm max-w-lg mx-auto">
            <svg className="w-16 h-16 text-indigo-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
-          <p className="text-slate-300 text-lg mb-6">Please connect your Web3 wallet to participate in the election.</p>
+          <p className="text-slate-300 text-lg mb-6">{t("vote.connectWalletPrompt")}</p>
         </div>
       ) : !isWhitelisted ? (
         <div className="bg-yellow-900/20 border border-yellow-500/30 p-8 rounded-2xl text-center backdrop-blur-sm max-w-lg mx-auto">
            <svg className="w-16 h-16 text-yellow-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
-          <p className="text-yellow-400 text-lg font-medium">Verification Required</p>
-          <p className="text-slate-400 mt-2">Your address ({account.slice(0,6)}...{account.slice(-4)}) is not whitelisted. Please contact the administrator.</p>
+          <p className="text-yellow-400 text-lg font-medium">{t("vote.verificationRequired")}</p>
+          <p className="text-slate-400 mt-2">{t("vote.notWhitelisted", { address: `${account.slice(0,6)}...${account.slice(-4)}` })}</p>
         </div>
       ) : !selectedElectionId ? (
         <div className="space-y-8">
@@ -613,9 +631,9 @@ function Vote() {
              <div className="theme-panel rounded-2xl border border-[var(--border-soft)] p-5 md:p-6">
                <div className="flex flex-col gap-4">
                  <div>
-                   <h2 className="text-2xl font-bold text-center mb-2">Select an Active Election</h2>
+                   <h2 className="text-2xl font-bold text-center mb-2">{t("vote.selectElectionTitle")}</h2>
                    <p className="text-center text-sm theme-text-muted">
-                     Choose a general election or switch to ward-based search for panchayat and municipal ballots.
+                     {t("vote.selectElectionBody")}
                    </p>
                  </div>
 
@@ -625,21 +643,21 @@ function Vote() {
                      onClick={() => setElectionAccessMode("all")}
                      className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${electionAccessMode === "all" ? "bg-indigo-600 text-white" : "bg-slate-800/70 text-slate-300"}`}
                    >
-                     All Elections
+                     {t("vote.allElections")}
                    </button>
                    <button
                      type="button"
                      onClick={() => setElectionAccessMode("global")}
                      className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${electionAccessMode === "global" ? "bg-indigo-600 text-white" : "bg-slate-800/70 text-slate-300"}`}
                    >
-                     General
+                     {t("vote.general")}
                    </button>
                    <button
                      type="button"
                      onClick={() => setElectionAccessMode("ward_based")}
                      className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${electionAccessMode === "ward_based" ? "bg-indigo-600 text-white" : "bg-slate-800/70 text-slate-300"}`}
                    >
-                     Ward Based
+                     {t("vote.wardBased")}
                    </button>
                  </div>
 
@@ -647,21 +665,21 @@ function Vote() {
                    <div className="grid gap-4 md:grid-cols-3">
                      <input
                        type="text"
-                       placeholder="District"
+                       placeholder={t("vote.districtPlaceholder")}
                        className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
                        value={districtFilter}
                        onChange={(e) => setDistrictFilter(e.target.value)}
                      />
                      <input
                        type="text"
-                       placeholder="Local body / village"
+                       placeholder={t("vote.localBodyPlaceholder")}
                        className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
                        value={localBodyFilter}
                        onChange={(e) => setLocalBodyFilter(e.target.value)}
                      />
                      <input
                        type="text"
-                       placeholder="Ward number"
+                       placeholder={t("vote.wardPlaceholder")}
                        className="w-full rounded-xl border border-slate-700 bg-slate-900/50 px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
                        value={wardSearch}
                        onChange={(e) => setWardSearch(e.target.value)}
@@ -674,8 +692,8 @@ function Vote() {
                <div className="bg-slate-800/50 border border-slate-700 p-12 rounded-2xl text-center backdrop-blur-sm">
                  <p className="text-slate-400">
                    {allElections.length === 0
-                     ? "There are no active elections at the moment."
-                     : "No active elections match the selected election type or ward search."}
+                     ? t("vote.noActiveElections")
+                     : t("vote.noFilteredElections")}
                  </p>
                </div>
              ) : (
@@ -695,11 +713,11 @@ function Vote() {
                      <h3 className="text-xl font-bold mb-2 group-hover:text-indigo-300 transition-colors">{e.title}</h3>
                      <div className="mb-2 flex flex-wrap gap-2">
                        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] ${e.metadata?.electionType === "ward_based" ? "bg-cyan-500/10 text-cyan-300 border border-cyan-500/20" : "bg-indigo-500/10 text-indigo-300 border border-indigo-500/20"}`}>
-                         {e.metadata?.electionType === "ward_based" ? "Ward Based" : "General"}
+                         {e.metadata?.electionType === "ward_based" ? t("vote.wardBased") : t("vote.general")}
                        </span>
                        {e.metadata?.wardNumber && (
                          <span className="rounded-full px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] bg-slate-700 text-slate-300 border border-slate-600">
-                           Ward {e.metadata.wardNumber}
+                           {t("common.wardLabel", { ward: e.metadata.wardNumber })}
                          </span>
                        )}
                      </div>
@@ -708,7 +726,7 @@ function Vote() {
                          {e.metadata.district} / {e.metadata.localBody}
                        </p>
                      )}
-                     <p className="text-slate-400 text-sm">Closes: {new Date(e.endTime * 1000).toLocaleString()}</p>
+                     <p className="text-slate-400 text-sm">{t("vote.closes", { time: new Date(e.endTime * 1000).toLocaleString() })}</p>
                    </button>
                  ))}
                </div>
@@ -729,14 +747,14 @@ function Vote() {
                 className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium"
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path></svg>
-                Back to Elections
+                {t("vote.backToElections")}
             </button>
             <div className="h-4 w-px bg-slate-700"></div>
             <div>
               <h2 className="text-xl font-bold text-indigo-400 tracking-tight">{selectedElectionTitle}</h2>
               {selectedElection?.metadata?.electionType === "ward_based" && (
                 <p className="mt-1 text-sm text-slate-400">
-                  {selectedElection.metadata.district} / {selectedElection.metadata.localBody} / Ward {selectedElection.metadata.wardNumber}
+                  {selectedElection.metadata.district} / {selectedElection.metadata.localBody} / {t("common.wardLabel", { ward: selectedElection.metadata.wardNumber })}
                 </p>
               )}
             </div>
@@ -748,17 +766,17 @@ function Vote() {
               electionState === 2 ? "bg-purple-900/20 border-purple-500/30" : 
               isVotingActive ? "bg-green-900/20 border-green-500/30" : "bg-yellow-900/20 border-yellow-500/30"}`}
           >
-             {electionState === 0 && <p className="text-slate-400 text-lg">The election has not been initialized yet.</p>}
+             {electionState === 0 && <p className="text-slate-400 text-lg">{t("vote.notInitialized")}</p>}
             
             {electionState === 1 && (
               <>
-                {!isVotingActive && currentTime < startTime && <p className="text-yellow-400 text-lg">The election has not started yet. Starts at: {new Date(startTime * 1000).toLocaleString()}</p>}
-                {!isVotingActive && currentTime > endTime && <p className="text-yellow-400 text-lg">The election voting period has ended. Waiting for admin to terminate the election.</p>}
-                {isVotingActive && <p className="text-green-400 text-lg font-medium">The election is currently active! Closes at: {new Date(endTime * 1000).toLocaleString()}</p>}
+                {!isVotingActive && currentTime < startTime && <p className="text-yellow-400 text-lg">{t("vote.startsAt", { time: new Date(startTime * 1000).toLocaleString() })}</p>}
+                {!isVotingActive && currentTime > endTime && <p className="text-yellow-400 text-lg">{t("vote.votingEndedWaiting")}</p>}
+                {isVotingActive && <p className="text-green-400 text-lg font-medium">{t("vote.activeClosesAt", { time: new Date(endTime * 1000).toLocaleString() })}</p>}
               </>
             )}
 
-            {electionState === 2 && <p className="text-purple-400 text-lg font-medium">The election has ended. Please check the Admin dashboard for results.</p>}
+            {electionState === 2 && <p className="text-purple-400 text-lg font-medium">{t("vote.electionEndedAdmin")}</p>}
           </div>
 
           {!biometricsVerified && electionState === 1 && isVotingActive ? (
@@ -767,18 +785,17 @@ function Vote() {
             <div className="bg-slate-800/80 border border-slate-700 p-8 rounded-2xl max-w-xl mx-auto text-center space-y-6 shadow-xl relative overflow-hidden">
                <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full blur-[40px]"></div>
                <svg className="w-16 h-16 text-indigo-400 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"></path></svg>
-               <h2 className="text-2xl font-bold">Generate Anonymous Identity</h2>
+               <h2 className="text-2xl font-bold">{t("vote.generateIdentity")}</h2>
                <p className="text-slate-300">
-                  To ensure your vote is completely untraceable, you must first generate a cryptographic Zero-Knowledge Identity.
-                  Your wallet will only interact with the blockchain to register your <i>public commitment</i>.
+                  {t("vote.generateIdentityBody")}
                </p>
                <div className="bg-slate-900/50 p-4 rounded-xl text-left border border-slate-700/50">
-                  <p className="text-sm text-yellow-400 font-medium mb-1">How it works:</p>
+                  <p className="text-sm text-yellow-400 font-medium mb-1">{t("vote.howItWorks")}</p>
                   <ul className="text-xs text-slate-400 space-y-2 list-disc pl-4">
-                     <li>A mathematical secret is generated and saved securely in your browser.</li>
-                     <li>You register the public hash (commitment) on the blockchain.</li>
-                     <li>When you vote, you submit a zk-SNARK proof. The smart contract validates you are registered without knowing <i>which</i> registered user you are.</li>
-                     <li>Zero Knowledge = Zero Traceability.</li>
+                     <li>{t("vote.howItWorks1")}</li>
+                     <li>{t("vote.howItWorks2")}</li>
+                     <li>{t("vote.howItWorks3")}</li>
+                     <li>{t("vote.howItWorks4")}</li>
                   </ul>
                </div>
                <button
@@ -786,7 +803,7 @@ function Vote() {
                   disabled={loading}
                   className="w-full bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-bold py-4 px-6 rounded-xl transition-all shadow-lg text-lg disabled:opacity-50"
                >
-                  {loading ? "Registering on Blockchain..." : "Generate & Register Identity"}
+                  {loading ? t("vote.registering") : t("vote.generateAndRegister")}
                </button>
             </div>
           ) : candidates.length > 0 && (
@@ -801,7 +818,7 @@ function Vote() {
                   </div>
                   <h3 className="text-xl font-semibold mb-2">{candidate.name}</h3>
                   <div className="bg-slate-900 rounded-full px-4 py-1 mb-6 border border-slate-700">
-                    <span className="text-slate-400 text-sm">Current Votes: <span className="text-white font-mono">{votes[idx]}</span></span>
+                    <span className="text-slate-400 text-sm">{t("vote.currentVotes", { count: votes[idx] })}</span>
                   </div>
                   <button
                     onClick={() => openModal(candidate, idx)}
@@ -812,7 +829,7 @@ function Vote() {
                         : "bg-slate-700 text-slate-500 cursor-not-allowed"
                     }`}
                   >
-                    View Profile & Vote
+                    {t("vote.viewProfileVote")}
                   </button>
                 </div>
               ))}
@@ -846,7 +863,7 @@ function Vote() {
                     <iframe
                       className="w-full h-full bg-slate-800"
                       src={`https://gateway.pinata.cloud/ipfs/${selectedCandidate.videoHash.split("?")[0]}`}
-                      title="Candidate PDF Portfolio"
+                      title={t("vote.pdfTitle")}
                     ></iframe>
                   ) : (
                     <video 
@@ -855,7 +872,7 @@ function Vote() {
                       src={`https://gateway.pinata.cloud/ipfs/${selectedCandidate.videoHash.split("?")[0]}`}
                       poster={selectedCandidate.logoUrl}
                     >
-                      Your browser does not support the video tag.
+                      {t("vote.browserVideoUnsupported")}
                     </video>
                   )}
                 </div>
@@ -864,16 +881,16 @@ function Vote() {
               <div className="bg-slate-800/50 rounded-xl p-5 border border-slate-700/50">
                 <h3 className="text-lg font-semibold text-indigo-400 mb-3 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z"></path></svg>
-                  Candidate Manifesto
+                  {t("vote.candidateManifesto")}
                 </h3>
                 {loadingManifesto ? (
                   <div className="flex items-center gap-2 text-slate-400">
                     <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin"></div>
-                    Loading manifesto from IPFS...
+                    {t("vote.loadingManifesto")}
                   </div>
                 ) : (
                   <p className="text-slate-300 leading-relaxed whitespace-pre-wrap">
-                    {modalManifesto || "No manifesto provided for this candidate."}
+                    {modalManifesto || t("vote.noManifesto")}
                   </p>
                 )}
               </div>
@@ -885,7 +902,7 @@ function Vote() {
                 disabled={loading || !isVotingActive}
                 className="w-full font-bold py-4 px-6 rounded-xl transition-all shadow-lg text-lg bg-gradient-to-r from-green-600 to-emerald-600 hover:from-green-500 hover:to-emerald-500 text-white hover:shadow-green-500/30 active:scale-95"
               >
-                {loading ? "Processing Transaction..." : `Cast Vote for ${selectedCandidate.name}`}
+                {loading ? t("vote.processingTransaction") : t("vote.castVoteFor", { name: selectedCandidate.name })}
               </button>
             </div>
           </div>
@@ -900,42 +917,42 @@ function Vote() {
               <div className="w-16 h-16 bg-green-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
                 <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7"></path></svg>
               </div>
-              <h2 className="text-2xl font-bold text-green-400 mb-1">Vote Successfully Cast!</h2>
-              <p className="text-green-300 text-sm">Your vote is permanently secured on the blockchain.</p>
+              <h2 className="text-2xl font-bold text-green-400 mb-1">{t("vote.voteSuccess")}</h2>
+              <p className="text-green-300 text-sm">{t("vote.voteSuccessBody")}</p>
             </div>
             
             <div className="overflow-y-auto custom-scrollbar">
               <div className="p-8 bg-white text-slate-900" ref={receiptRef}>
                 <div className="text-center mb-6">
                   <h3 className="text-2xl font-black tracking-widest text-slate-800 uppercase">SecureVote</h3>
-                  <p className="text-slate-500 text-xs font-mono mt-1">CRYPTOGRAPHIC VOTER RECEIPT</p>
+                  <p className="text-slate-500 text-xs font-mono mt-1">{t("vote.cryptographicReceipt")}</p>
                 </div>
                 
                 <div className="space-y-4 font-mono text-sm border-y border-dashed border-slate-300 py-6">
                   <div>
-                    <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Transaction Hash</span>
+                    <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">{t("vote.transactionHash")}</span>
                     <span className="block break-all font-medium text-indigo-700 bg-indigo-50 px-3 py-2 rounded border border-indigo-100">{receiptData.hash}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Block Number</span>
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t("vote.blockNumber")}</span>
                     <span className="font-bold text-slate-800 bg-slate-100 px-3 py-1 rounded">{receiptData.blockNumber}</span>
                   </div>
                   <div className="flex justify-between items-center border-b border-slate-100 pb-3">
-                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Timestamp</span>
+                    <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">{t("vote.timestamp")}</span>
                     <span className="font-bold text-slate-800">{receiptData.timestamp}</span>
                   </div>
                   <div className="pt-2">
-                    <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">Voter (From)</span>
+                    <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider mb-1">{t("vote.voterFrom")}</span>
                     <span className="block break-all font-medium text-slate-700 text-xs bg-slate-50 p-2 rounded">{receiptData.from}</span>
                   </div>
                   <div>
-                    <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider mt-2 mb-1">Contract (To)</span>
+                    <span className="block text-xs text-slate-500 font-bold uppercase tracking-wider mt-2 mb-1">{t("vote.contractTo")}</span>
                     <span className="block break-all font-medium text-slate-700 text-xs bg-slate-50 p-2 rounded">{receiptData.to}</span>
                   </div>
                 </div>
 
                 <div className="text-center mt-6">
-                  <p className="text-xs text-slate-400 italic">Keep this receipt safe. You can independently verify this transaction hash on the Verification page without revealing your identity or choice.</p>
+                  <p className="text-xs text-slate-400 italic">{t("vote.receiptHint")}</p>
                 </div>
               </div>
             </div>
@@ -946,13 +963,13 @@ function Vote() {
                 className="flex-1 font-bold py-4 px-4 rounded-xl transition-all shadow-lg text-white bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 active:scale-95 flex items-center justify-center gap-2"
               >
                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
-                Download PDF Receipt
+                {t("vote.downloadReceipt")}
               </button>
               <button
                 onClick={() => setReceiptData(null)}
                 className="font-bold py-4 px-8 rounded-xl transition-all text-slate-300 bg-slate-700 hover:bg-slate-600 active:scale-95 border border-slate-600"
               >
-                Close
+                {t("vote.close")}
               </button>
             </div>
           </div>
