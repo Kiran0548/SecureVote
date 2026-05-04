@@ -2,6 +2,7 @@ import React, { Suspense, lazy, useEffect, useState } from "react";
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import Navbar from "./components/navbar";
 import { LanguageProvider, useLanguage } from "./utils/i18n";
+import Chatbot from "./components/Chatbot";
 
 const Home = lazy(() => import("./pages/Home"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -46,6 +47,7 @@ function AppContent() {
               <Route path="/admin" element={<Admin />} />
             </Routes>
           </Suspense>
+          <Chatbot />
         </div>
       </div>
     </Router>
