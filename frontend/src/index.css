@@ -58,10 +58,10 @@ body {
     radial-gradient(circle at top left, rgba(59, 130, 246, 0.14), transparent 32%),
     radial-gradient(circle at top right, rgba(16, 185, 129, 0.12), transparent 26%),
     linear-gradient(180deg, #f8fbff 0%, #eef4ff 46%, #f8fafc 100%);
-  --surface-1: rgba(255, 255, 255, 0.86);
-  --surface-2: rgba(255, 255, 255, 0.68);
-  --surface-3: rgba(241, 245, 249, 0.94);
-  --surface-4: rgba(226, 232, 240, 0.82);
+  --surface-1: rgba(255, 255, 255, 0.96);
+  --surface-2: rgba(255, 255, 255, 0.94);
+  --surface-3: rgba(241, 245, 249, 0.98);
+  --surface-4: rgba(226, 232, 240, 0.96);
   --surface-soft: rgba(79, 70, 229, 0.08);
   --border-soft: rgba(100, 116, 139, 0.15);
   --border-strong: rgba(79, 70, 229, 0.28);
@@ -82,6 +82,23 @@ body {
 
 .theme-light {
   color-scheme: light;
+}
+
+.theme-light .theme-card,
+.theme-light .theme-panel,
+.theme-light .hero-badge,
+.theme-light .signal-chip {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.theme-light .theme-grid {
+  mask-image: none;
+  opacity: 0.15;
+}
+
+.theme-light .theme-glow {
+  display: none;
 }
 
 .theme-root *,
