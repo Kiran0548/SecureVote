@@ -201,7 +201,7 @@ const en = {
     fileReadError: "Unable to read the selected photo.",
     fileProcessError: "Unable to process the selected photo.",
     preparePhotoError: "Unable to prepare the selected photo.",
-    submitSuccess: "Application submitted successfully. The admin can now review and approve it.",
+    submitSuccess: "Application submitted successfully! Please check the notification bell (🔔) in the top right to track your approval status.",
     submitError: "Unable to submit application.",
   },
   vote: {

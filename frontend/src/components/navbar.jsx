@@ -69,8 +69,29 @@ function Navbar({ theme, onToggleTheme }) {
                 message: "Your registration was rejected. Please check with the admin.",
                 status: myApp.status
               });
+            } else if (myApp.status === "PENDING" && dismissedStatus !== "PENDING") {
+               notifs.push({
+                id: 3,
+                type: "info",
+                title: "Application Pending",
+                message: "⏳ Your registration request has been received and is currently under review by an administrator.",
+                status: myApp.status
+              });
             }
             setNotifications(notifs);
+          } else {
+            const dismissedStatus = localStorage.getItem(`notified_status_${account}`);
+            if (dismissedStatus !== "NONE") {
+               setNotifications([{
+                  id: 0,
+                  type: "warning",
+                  title: "No Registration Found",
+                  message: "⚠️ You haven't submitted a registration request yet. Please go to the Register page to apply.",
+                  status: "NONE"
+               }]);
+            } else {
+               setNotifications([]);
+            }
           }
         }
       } catch (err) {
@@ -188,8 +209,8 @@ function Navbar({ theme, onToggleTheme }) {
                 </svg>
                 {notifications.length > 0 && (
                   <span className="absolute -top-1 -right-1 flex h-3 w-3">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500 border-2 border-[var(--surface-1)]"></span>
+                    <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${notifications[0].type === 'success' ? 'bg-green-400' : notifications[0].type === 'error' ? 'bg-red-400' : 'bg-yellow-400'}`}></span>
+                    <span className={`relative inline-flex rounded-full h-3 w-3 border-2 border-[var(--surface-1)] ${notifications[0].type === 'success' ? 'bg-green-500' : notifications[0].type === 'error' ? 'bg-red-500' : 'bg-yellow-500'}`}></span>
                   </span>
                 )}
               </button>
@@ -204,7 +225,7 @@ function Navbar({ theme, onToggleTheme }) {
                       notifications.map(notif => (
                         <div key={notif.id} className="p-4 border-b border-[var(--border-soft)] hover:bg-[var(--surface-2)] transition-colors">
                           <div className="flex items-start gap-3">
-                            <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${notif.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}></div>
+                            <div className={`mt-1 flex-shrink-0 w-2 h-2 rounded-full ${notif.type === 'success' ? 'bg-green-500' : notif.type === 'error' ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
                             <div className="flex-1">
                               <p className="text-sm font-bold text-[var(--text-main)]">{notif.title}</p>
                               <p className="text-sm theme-text-muted mt-1 leading-relaxed">{notif.message}</p>
