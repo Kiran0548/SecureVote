@@ -102,16 +102,23 @@ body {
   opacity: 0.6;
 }
 
-/* Force disable all continuous animations in light mode as they cause extreme GPU thrashing */
+/* Optimize light mode by disabling heavy continuous animations, relying instead on hover effects */
 .theme-light .theme-glow-a,
 .theme-light .theme-glow-b,
 .theme-light .theme-glow-c,
-.theme-light .ballot-card,
 .theme-light .ballot-check,
 .theme-light .ballot-seal {
   animation: none !important;
-  transform: translateZ(0) !important;
-  will-change: auto !important;
+}
+
+.theme-light .ballot-card {
+  animation: none !important;
+  transition: transform 300ms ease, box-shadow 300ms ease;
+}
+
+.theme-light .ballot-card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 30px 60px -12px rgba(79, 70, 229, 0.25), inset 0 2px 4px rgba(255, 255, 255, 1);
 }
 
 .theme-light .theme-glow {
