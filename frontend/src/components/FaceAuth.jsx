@@ -5,6 +5,7 @@ import { useLanguage } from "../utils/i18n";
 
 const FaceAuth = ({ onVerified, account }) => {
   const webcamRef = useRef(null);
+  const scanningRef = useRef(false); // ref so rAF loop always sees current value — fixes stale closure bug
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
@@ -25,7 +26,7 @@ const FaceAuth = ({ onVerified, account }) => {
           faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
           faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL),
         ]);
-        
+
         // Load the saved descriptor for this account
         if (account) {
           const savedData = localStorage.getItem(`face_${account.toLowerCase()}`);
@@ -39,7 +40,7 @@ const FaceAuth = ({ onVerified, account }) => {
             setError(t("faceAuth.noFaceId"));
           }
         }
-        
+
         setModelsLoaded(true);
       } catch (err) {
         console.error("Error loading face models:", err);
@@ -50,13 +51,16 @@ const FaceAuth = ({ onVerified, account }) => {
   }, [account, t]);
 
   const detectFace = async () => {
+    // Use ref so the rAF loop always reads the latest value (fixes stale closure)
+    if (!scanningRef.current) return;
+
     if (!webcamRef.current || !webcamRef.current.video || !modelsLoaded || !matcher) {
-      if (scanning && !matcher && !error) {
-         requestAnimationFrame(detectFace);
+      if (scanningRef.current && !matcher && !error) {
+        requestAnimationFrame(detectFace);
       }
       return;
     }
-    
+
     if (webcamRef.current.video.readyState === 4) {
       const video = webcamRef.current.video;
       const detections = await faceapi.detectSingleFace(
@@ -64,10 +68,13 @@ const FaceAuth = ({ onVerified, account }) => {
         new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
       ).withFaceLandmarks().withFaceDescriptor();
 
+      if (!scanningRef.current) return; // cancelled while awaiting detection
+
       if (detections) {
         const bestMatch = matcher.findBestMatch(detections.descriptor);
         if (bestMatch.label !== 'unknown') {
           setStatusKey("faceAuth.verified");
+          scanningRef.current = false;
           setScanning(false);
           setTimeout(() => onVerified(), 1000);
           return;
@@ -77,8 +84,8 @@ const FaceAuth = ({ onVerified, account }) => {
       } else {
         setStatusKey("faceAuth.scanning");
       }
-      
-      if (scanning) {
+
+      if (scanningRef.current) {
         requestAnimationFrame(detectFace);
       }
     } else {
@@ -88,15 +95,22 @@ const FaceAuth = ({ onVerified, account }) => {
 
   useEffect(() => {
     if (scanning && matcher) {
+      scanningRef.current = true;
       detectFace();
     }
     // eslint-disable-next-line
   }, [scanning, modelsLoaded, matcher]);
 
+  const startScan = () => {
+    setStatusKey("faceAuth.scanning");
+    scanningRef.current = true;
+    setScanning(true);
+  };
+
   return (
     <div className="flex flex-col items-center justify-center p-8 bg-slate-800/80 border border-slate-700 rounded-2xl max-w-md mx-auto relative overflow-hidden">
       <h2 className="text-2xl font-bold mb-4 text-white">{t("faceAuth.title")}</h2>
-      
+
       {!error && (
         <p className={`text-center mb-6 font-medium ${statusKey === "faceAuth.mismatch" ? "text-red-400" : statusKey === "faceAuth.verified" ? "text-green-400" : "text-slate-400"}`}>
           {t(statusKey)}
@@ -118,10 +132,10 @@ const FaceAuth = ({ onVerified, account }) => {
             className="absolute inset-0 w-full h-full object-cover"
             videoConstraints={{ facingMode: "user" }}
             onUserMedia={() => {
-              if (!scanning && matcher) setScanning(true);
+              if (!scanningRef.current && matcher) startScan();
             }}
           />
-          
+
           {/* Scanning Animation */}
           {scanning && (
             <div className="absolute inset-0 pointer-events-none">
@@ -134,7 +148,7 @@ const FaceAuth = ({ onVerified, account }) => {
 
       {!scanning && modelsLoaded && !error ? (
         <button
-          onClick={() => { setScanning(true); setStatusKey("faceAuth.scanning"); }}
+          onClick={startScan}
           className="bg-indigo-600 hover:bg-indigo-500 text-white font-semibold py-2 px-6 rounded-xl transition-all"
         >
           {statusKey === "faceAuth.verified" ? t("faceAuth.verified") : t("faceAuth.retry")}
