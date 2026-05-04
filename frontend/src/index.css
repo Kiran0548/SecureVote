@@ -102,6 +102,18 @@ body {
   opacity: 0.6;
 }
 
+/* Force disable all continuous animations in light mode as they cause extreme GPU thrashing */
+.theme-light .theme-glow-a,
+.theme-light .theme-glow-b,
+.theme-light .theme-glow-c,
+.theme-light .ballot-card,
+.theme-light .ballot-check,
+.theme-light .ballot-seal {
+  animation: none !important;
+  transform: translateZ(0) !important;
+  will-change: auto !important;
+}
+
 .theme-light .theme-glow {
   display: block;
   filter: none;
