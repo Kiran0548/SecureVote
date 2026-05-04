@@ -44,7 +44,8 @@ function Navbar({ theme, onToggleTheme }) {
         return;
       }
       try {
-        const response = await fetch("http://localhost:8080/api/voter-applications");
+        const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8080";
+        const response = await fetch(`${API_BASE_URL}/api/voter-applications`);
         if (response.ok) {
           const apps = await response.json();
           const myApp = apps.find(a => a.walletAddress.toLowerCase() === account.toLowerCase());
