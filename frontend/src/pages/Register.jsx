@@ -104,6 +104,35 @@ function Register() {
     }
   };
 
+  const handleIdProofChange = async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) {
+      handleChange("idProofDataUrl", "");
+      return;
+    }
+
+    if (file.size > 2 * 1024 * 1024) {
+      setMessageType("error");
+      setMessage("Identity proof file must be less than 2MB.");
+      handleChange("idProofDataUrl", "");
+      return;
+    }
+
+    try {
+      if (file.type.startsWith("image/")) {
+        const result = await compressImageFile(file);
+        handleChange("idProofDataUrl", result);
+      } else {
+        const result = await readFileAsDataUrl(file);
+        handleChange("idProofDataUrl", result);
+      }
+    } catch (error) {
+      setMessageType("error");
+      setMessage(error.message || "Unable to process identity proof file.");
+      handleChange("idProofDataUrl", "");
+    }
+  };
+
   const connectWallet = async () => {
     if (!window.ethereum) {
       alert(t("register.walletInstall"));
@@ -280,13 +309,29 @@ function Register() {
             <label className="space-y-2">
               <span className="text-sm font-semibold">{t("register.idProofLabel")}</span>
               <input
-                type="text"
-                value={form.idProofPath}
-                onChange={(event) => handleChange("idProofPath", event.target.value)}
-                className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
-                placeholder={t("register.idProofPlaceholder")}
+                type="file"
+                accept="image/*,application/pdf"
+                onChange={handleIdProofChange}
+                className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none file:mr-4 file:rounded-full file:border-0 file:bg-indigo-500/15 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-indigo-200"
+                required
               />
             </label>
+
+            {form.idProofDataUrl && form.idProofDataUrl.startsWith("data:image/") ? (
+              <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4">
+                <p className="mb-3 text-sm font-semibold">ID Proof Preview</p>
+                <img
+                  src={form.idProofDataUrl}
+                  alt="ID Proof preview"
+                  className="h-40 w-auto rounded-2xl object-cover"
+                />
+              </div>
+            ) : form.idProofDataUrl && form.idProofDataUrl.startsWith("data:application/pdf") ? (
+              <div className="rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] p-4">
+                <p className="mb-3 text-sm font-semibold">ID Proof Preview</p>
+                <iframe src={form.idProofDataUrl} className="w-full h-40 rounded-2xl" title="ID Proof" />
+              </div>
+            ) : null}
 
             <label className="space-y-2">
               <span className="text-sm font-semibold">{t("register.voterPhoto")}</span>
@@ -312,7 +357,7 @@ function Register() {
 
             <button
               type="submit"
-              disabled={submitting || !form.photoDataUrl}
+              disabled={submitting || !form.photoDataUrl || !form.idProofDataUrl}
               className="theme-primary-btn rounded-2xl px-6 py-3 text-sm font-bold disabled:opacity-60"
             >
               {submitting ? t("register.submitting") : t("register.submit")}

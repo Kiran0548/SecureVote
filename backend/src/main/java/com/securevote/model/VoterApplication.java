@@ -39,6 +39,10 @@ public class VoterApplication {
 
     @Lob
     @Column(columnDefinition = "CLOB")
+    private String idProofDataUrl;
+
+    @Lob
+    @Column(columnDefinition = "CLOB")
     private String photoDataUrl;
 
     @Column(nullable = false)
@@ -120,6 +124,14 @@ public class VoterApplication {
 
     public void setIdProofPath(String idProofPath) {
         this.idProofPath = idProofPath;
+    }
+
+    public String getIdProofDataUrl() {
+        return idProofDataUrl;
+    }
+
+    public void setIdProofDataUrl(String idProofDataUrl) {
+        this.idProofDataUrl = idProofDataUrl;
     }
 
     public String getPhotoDataUrl() {

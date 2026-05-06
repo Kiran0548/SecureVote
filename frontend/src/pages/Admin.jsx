@@ -63,6 +63,7 @@ function Admin() {
   const [selectedApplicationId, setSelectedApplicationId] = useState(null);
   const [editingWallet, setEditingWallet] = useState("");
   const [editingProfile, setEditingProfile] = useState(null);
+  const [viewingIdProof, setViewingIdProof] = useState(null);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -1072,7 +1073,19 @@ function Admin() {
                               <p className="mt-2 text-sm text-slate-300">No ward details required for general election access.</p>
                             )}
                             <p className="mt-1 text-sm text-slate-400">Masked ID: {application.idReferenceMasked || "Not provided"}</p>
-                            <p className="mt-1 text-sm text-slate-400">Proof Ref: {application.idProofPath || "Not provided"}</p>
+                            {application.idProofDataUrl || application.idProofPath ? (
+                              <div className="mt-2">
+                                <button
+                                  type="button"
+                                  onClick={() => setViewingIdProof(application.idProofDataUrl || application.idProofPath)}
+                                  className="rounded-lg border border-sky-500/30 bg-sky-500/10 px-3 py-1.5 text-xs font-semibold text-sky-300 transition-colors hover:bg-sky-500/20"
+                                >
+                                  View Identity Proof
+                                </button>
+                              </div>
+                            ) : (
+                              <p className="mt-1 text-sm text-slate-400">Proof Ref: Not provided</p>
+                            )}
                             {application.photoDataUrl ? (
                               <img
                                 src={application.photoDataUrl}
@@ -1528,11 +1541,115 @@ function Admin() {
                     </div>
                   </div>
                 </>
+                    {loading ? "Processing..." : "Start Election"}
+                  </button>
+                </form>
+              </div>
+
+             {/* Status Information */}
+            {selectedElectionId && (
+               <div className="bg-slate-800/80 border border-slate-700 p-6 rounded-2xl flex items-center justify-between shadow-lg h-fit">
+                 <div>
+                   <h3 className="text-lg font-semibold text-white">Management: {allElections.find(e => e.id === selectedElectionId)?.title}</h3>
+                   <p className="text-slate-400">
+                      {electionState === 1 ? (currentTime > electionEndTime && electionEndTime > 0 ? "Time Up (Pending Termination)" : "Currently Ongoing") : "Election Ended"}
+                   </p>
+                 </div>
+                 <button 
+                  onClick={handleResetUI}
+                  className="text-xs text-indigo-400 hover:underline"
+                 >
+                   Deselect
+                 </button>
+               </div>
+            )}
+          </div>
+
+          {/* Results Section */}
+          <div id="results-section" className="scroll-mt-20">
+            {allElections.length > 0 && (
+            <div className="space-y-8 mt-12">
+              <div className="flex items-center gap-3 mb-6">
+                <svg className="w-8 h-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                <h2 className="text-3xl font-bold">Election Results & Analytics</h2>
+                <div className="ml-auto flex gap-3">
+                  <button 
+                    onClick={() => handleExport("csv")}
+                    disabled={loading || results.length === 0}
+                    className="flex items-center gap-2 bg-slate-700 hover:bg-slate-600 border border-slate-600 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg>
+                    Export CSV
+                  </button>
+                  <button 
+                    onClick={() => handleExport("pdf")}
+                    disabled={loading || results.length === 0}
+                    className="flex items-center gap-2 bg-indigo-600 hover:bg-indigo-500 border border-indigo-500 px-4 py-2 rounded-lg text-sm font-medium transition-colors disabled:opacity-50 shadow-lg shadow-indigo-500/20"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Export Signed PDF
+                  </button>
+                </div>
+              </div>
+              
+              {results.length === 0 ? (
+                <p className="text-slate-400 text-center py-8">Loading analytics data...</p>
+              ) : (
+                <>
+                  <AnalyticsDashboard candidates={results} contract={contract} electionId={selectedElectionId} />
+                  
+                  <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl backdrop-blur-sm shadow-xl mt-8 hidden md:block">
+                    <h3 className="text-xl font-semibold mb-6 text-slate-300">Detailed Tally</h3>
+                    <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {results.slice().sort((a,b) => b.votes - a.votes).map((res, idx) => (
+                        <div key={idx} className="bg-slate-900/80 p-5 rounded-xl flex items-center gap-4 border border-slate-700/50 hover:border-indigo-500/30 transition-colors">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-lg overflow-hidden shrink-0 ${idx === 0 ? "bg-yellow-500/20 text-yellow-500 border border-yellow-500/30" : "bg-slate-800 text-slate-400"}`}>
+                            {res.logoUrl ? (
+                              <img src={res.logoUrl} alt="" className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; e.target.nextSibling.style.display = 'block'; }} />
+                            ) : null}
+                            <span className={res.logoUrl ? 'hidden' : 'block'}>{idx + 1}</span>
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h4 className="font-semibold text-white truncate">{res.name}</h4>
+                            <p className="text-sm text-slate-500">{res.votes} votes</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </>
               )}
             </div>
             )}
           </div>
 
+        </div>
+      )}
+
+      {viewingIdProof && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm">
+          <div className="relative w-full max-w-4xl rounded-2xl bg-slate-900 p-6 shadow-2xl border border-slate-700">
+            <button
+              onClick={() => setViewingIdProof(null)}
+              className="absolute right-4 top-4 rounded-full bg-slate-800 p-2 text-slate-400 hover:bg-slate-700 hover:text-white transition-colors"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <h3 className="mb-4 text-xl font-bold text-white">Identity Proof Document</h3>
+            <div className="overflow-hidden rounded-xl border border-slate-700 bg-slate-950 flex justify-center items-center">
+              {viewingIdProof.startsWith("data:application/pdf") ? (
+                <iframe src={viewingIdProof} className="h-[70vh] w-full" title="Identity Proof PDF" />
+              ) : viewingIdProof.startsWith("data:image/") ? (
+                <img src={viewingIdProof} alt="Identity Proof" className="max-h-[70vh] w-auto object-contain" />
+              ) : (
+                <div className="flex h-[70vh] items-center justify-center p-8 text-center text-slate-400">
+                  <p className="break-all">Link: <a href={viewingIdProof.startsWith("http") ? viewingIdProof : "#"} target="_blank" rel="noreferrer" className="text-sky-400 underline">{viewingIdProof}</a><br/><br/>(Legacy format or unsupported type. Cannot preview directly.)</p>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
     </div>

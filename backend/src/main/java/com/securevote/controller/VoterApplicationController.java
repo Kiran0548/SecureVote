@@ -63,6 +63,7 @@ public class VoterApplicationController {
         application.setWardNumber(trimValue(application.getWardNumber()));
         application.setIdReferenceMasked(trimValue(application.getIdReferenceMasked()));
         application.setIdProofPath(trimValue(application.getIdProofPath()));
+        application.setIdProofDataUrl(trimValue(application.getIdProofDataUrl()));
         application.setPhotoDataUrl(trimValue(application.getPhotoDataUrl()));
         application.setReviewNote("");
         application.setStatus("PENDING");
