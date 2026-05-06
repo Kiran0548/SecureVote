@@ -162,14 +162,16 @@ function Admin() {
       }
 
       // Fetch all required data in parallel
-      const [metadataMap, savedProfiles, savedApplications] = await Promise.all([
+      const [metadataMap, savedProfiles, savedApplications, logs] = await Promise.all([
         fetchElectionMetadataMap(),
         fetchAllVoterProfiles().catch(() => []),
-        fetchVoterApplications().catch(() => [])
+        fetchVoterApplications().catch(() => []),
+        fetchAllVoteLogs().catch(() => [])
       ]);
       
       setVoterProfiles(savedProfiles);
       setVoterApplications(savedApplications);
+      setAllVoteLogs(logs);
 
       // Check if current user is owner
       const owner = await sc.owner();
