@@ -273,7 +273,7 @@ function Admin() {
     try {
       const detections = await faceapi.detectSingleFace(
         imgEl,
-        new faceapi.TinyFaceDetectorOptions()
+        new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.4 })
       ).withFaceLandmarks().withFaceDescriptor();
       
       if (detections) {

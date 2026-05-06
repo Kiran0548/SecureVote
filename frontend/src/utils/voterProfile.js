@@ -7,6 +7,7 @@ export const defaultVoterProfile = {
   localBody: "",
   wardNumber: "",
   idReferenceMasked: "",
+  gender: "",
 };
 
 export function normalizeVoterProfile(profile = {}) {
@@ -17,6 +18,7 @@ export function normalizeVoterProfile(profile = {}) {
     localBody: (profile.localBody || "").trim(),
     wardNumber: (profile.wardNumber || "").trim(),
     idReferenceMasked: (profile.idReferenceMasked || "").trim(),
+    gender: (profile.gender || "").trim(),
   };
 }
 

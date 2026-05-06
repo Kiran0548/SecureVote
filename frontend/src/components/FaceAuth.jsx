@@ -1,17 +1,28 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useRef, useState, useEffect, useCallback } from "react";
 import Webcam from "react-webcam";
 import * as faceapi from "@vladmandic/face-api";
 import { useLanguage } from "../utils/i18n";
 
+// Use the same detector options everywhere so enrollment and auth descriptors are comparable.
+const DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({
+  inputSize: 320,
+  scoreThreshold: 0.4,
+});
+
 const FaceAuth = ({ onVerified, account }) => {
   const webcamRef = useRef(null);
-  const scanningRef = useRef(false); // ref so rAF loop always sees current value — fixes stale closure bug
+  const scanningRef = useRef(false); // use a ref so the rAF loop always sees current value
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [scanning, setScanning] = useState(false);
   const [error, setError] = useState("");
   const [matcher, setMatcher] = useState(null);
   const { t } = useLanguage();
   const [statusKey, setStatusKey] = useState("faceAuth.initialStatus");
+
+  // Keep the ref in sync with the state
+  useEffect(() => {
+    scanningRef.current = scanning;
+  }, [scanning]);
 
   useEffect(() => {
     setStatusKey("faceAuth.initialStatus");
@@ -33,8 +44,9 @@ const FaceAuth = ({ onVerified, account }) => {
           if (savedData) {
             const descriptorArray = new Float32Array(JSON.parse(savedData));
             const labeledDescriptor = new faceapi.LabeledFaceDescriptors(account, [descriptorArray]);
-            // 0.4 specifies a strict threshold to prevent false positive face matches
-            const faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, 0.4);
+            // 0.6 is the recommended threshold – strict enough to prevent impersonation
+            // but tolerant of natural variation in lighting/angle.
+            const faceMatcher = new faceapi.FaceMatcher(labeledDescriptor, 0.6);
             setMatcher(faceMatcher);
           } else {
             setError(t("faceAuth.noFaceId"));
@@ -50,60 +62,66 @@ const FaceAuth = ({ onVerified, account }) => {
     loadModels();
   }, [account, t]);
 
-  const detectFace = async () => {
-    // Use ref so the rAF loop always reads the latest value (fixes stale closure)
+  const detectFace = useCallback(async () => {
+    // Stop if the scan was cancelled
     if (!scanningRef.current) return;
 
-    if (!webcamRef.current || !webcamRef.current.video || !modelsLoaded || !matcher) {
-      if (scanningRef.current && !matcher && !error) {
-        requestAnimationFrame(detectFace);
-      }
+    const video = webcamRef.current?.video;
+    if (!video || !modelsLoaded || !matcher) {
+      // Models not ready yet – retry on next frame
+      requestAnimationFrame(detectFace);
       return;
     }
 
-    if (webcamRef.current.video.readyState === 4) {
-      const video = webcamRef.current.video;
-      const detections = await faceapi.detectSingleFace(
-        video,
-        new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 })
-      ).withFaceLandmarks().withFaceDescriptor();
+    if (video.readyState !== 4) {
+      // Video not ready yet – retry on next frame
+      requestAnimationFrame(detectFace);
+      return;
+    }
 
-      if (!scanningRef.current) return; // cancelled while awaiting detection
+    try {
+      const detections = await faceapi
+        .detectSingleFace(video, DETECTOR_OPTIONS)
+        .withFaceLandmarks()
+        .withFaceDescriptor();
+
+      if (!scanningRef.current) return; // cancelled while awaiting
 
       if (detections) {
         const bestMatch = matcher.findBestMatch(detections.descriptor);
-        if (bestMatch.label !== 'unknown') {
+        if (bestMatch.label !== "unknown") {
           setStatusKey("faceAuth.verified");
-          scanningRef.current = false;
           setScanning(false);
+          scanningRef.current = false;
           setTimeout(() => onVerified(), 1000);
-          return;
+          return; // done – do NOT schedule another frame
         } else {
           setStatusKey("faceAuth.mismatch");
         }
       } else {
         setStatusKey("faceAuth.scanning");
       }
+    } catch (err) {
+      console.error("Face detection error:", err);
+    }
 
-      if (scanningRef.current) {
-        requestAnimationFrame(detectFace);
-      }
-    } else {
+    // Continue scanning on the next frame
+    if (scanningRef.current) {
       requestAnimationFrame(detectFace);
     }
-  };
+  }, [modelsLoaded, matcher, onVerified]);
 
+  // Start the detection loop whenever scanning becomes true
   useEffect(() => {
-    if (scanning && matcher) {
+    if (scanning && modelsLoaded && matcher) {
       scanningRef.current = true;
       detectFace();
     }
-    // eslint-disable-next-line
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scanning, modelsLoaded, matcher]);
 
   const startScan = () => {
     setStatusKey("faceAuth.scanning");
-    scanningRef.current = true;
     setScanning(true);
   };
 
@@ -112,13 +130,23 @@ const FaceAuth = ({ onVerified, account }) => {
       <h2 className="text-2xl font-bold mb-4 text-white">{t("faceAuth.title")}</h2>
 
       {!error && (
-        <p className={`text-center mb-6 font-medium ${statusKey === "faceAuth.mismatch" ? "text-red-400" : statusKey === "faceAuth.verified" ? "text-green-400" : "text-slate-400"}`}>
+        <p
+          className={`text-center mb-6 font-medium ${
+            statusKey === "faceAuth.mismatch"
+              ? "text-red-400"
+              : statusKey === "faceAuth.verified"
+              ? "text-green-400"
+              : "text-slate-400"
+          }`}
+        >
           {t(statusKey)}
         </p>
       )}
 
       {error ? (
-        <p className="text-red-400 text-center font-medium bg-red-900/20 p-4 rounded-lg border border-red-500/30">{error}</p>
+        <p className="text-red-400 text-center font-medium bg-red-900/20 p-4 rounded-lg border border-red-500/30">
+          {error}
+        </p>
       ) : !modelsLoaded ? (
         <div className="flex flex-col items-center">
           <div className="w-10 h-10 border-4 border-indigo-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -130,9 +158,12 @@ const FaceAuth = ({ onVerified, account }) => {
             ref={webcamRef}
             audio={false}
             className="absolute inset-0 w-full h-full object-cover"
-            videoConstraints={{ facingMode: "user" }}
+            videoConstraints={{ facingMode: "user", width: 640, height: 480 }}
             onUserMedia={() => {
-              if (!scanningRef.current && matcher) startScan();
+              // Auto-start scanning once camera is ready and models + matcher are loaded
+              if (!scanningRef.current && matcher) {
+                startScan();
+              }
             }}
           />
 
