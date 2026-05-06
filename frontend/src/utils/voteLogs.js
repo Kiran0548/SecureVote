@@ -26,3 +26,11 @@ export async function createVoteLog(payload) {
 
   return response.json();
 }
+
+export async function fetchAllVoteLogs() {
+  const response = await fetch(`${API_BASE_URL}/api/vote`);
+  if (!response.ok) {
+    throw new Error(`Unable to fetch vote logs [${response.status}]`);
+  }
+  return response.json();
+}

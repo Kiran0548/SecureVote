@@ -19,8 +19,9 @@ import {
 import { useState, useEffect } from "react";
 
 const COLORS = ["#6366f1", "#8b5cf6", "#ec4899", "#14b8a6", "#f59e0b", "#ef4444"];
+const GENDER_COLORS = ["#3b82f6", "#ec4899", "#10b981"];
 
-const AnalyticsDashboard = ({ candidates, contract, electionId }) => {
+const AnalyticsDashboard = ({ candidates, contract, electionId, voteLogs = [], voterProfiles = [] }) => {
   const [turnoutData, setTurnoutData] = useState([]);
   const [loadingTurnout, setLoadingTurnout] = useState(false);
 
@@ -78,9 +79,28 @@ const AnalyticsDashboard = ({ candidates, contract, electionId }) => {
     votes: Number(c.votes),
   }));
 
-  // Find winner
-  const maxVotes = Math.max(...data.map(d => d.votes));
-  const winners = data.filter(d => d.votes === maxVotes && maxVotes > 0);
+  // Find winner (Excluding NOTA)
+  const dataForWinner = data.filter(d => d.name !== "None of the Above (NOTA)");
+  const maxVotes = Math.max(...dataForWinner.map(d => d.votes));
+  const winners = dataForWinner.filter(d => d.votes === maxVotes && maxVotes > 0);
+
+  // Compute Gender Demographics
+  const electionLogs = voteLogs.filter(log => Number(log.electionId) === Number(electionId));
+  const genderCounts = { Male: 0, Female: 0, Other: 0 };
+  
+  electionLogs.forEach(log => {
+    const profile = voterProfiles.find(p => p.walletAddress?.toLowerCase() === log.voter?.toLowerCase());
+    const gender = profile?.gender || "Other";
+    if (genderCounts[gender] !== undefined) {
+      genderCounts[gender]++;
+    } else {
+      genderCounts["Other"]++;
+    }
+  });
+
+  const genderData = Object.entries(genderCounts)
+    .filter(([_, count]) => count > 0)
+    .map(([name, value]) => ({ name, value }));
 
   return (
     <div className="space-y-8 animate-[fadeIn_0.5s_ease-out]">
@@ -154,6 +174,67 @@ const AnalyticsDashboard = ({ candidates, contract, electionId }) => {
                 <Legend verticalAlign="bottom" height={36} wrapperStyle={{ paddingTop: '20px' }}/>
               </PieChart>
             </ResponsiveContainer>
+          </div>
+        </div>
+      </div>
+
+      {/* Demographics Section */}
+      <div className="bg-slate-800/80 border border-slate-700 p-8 rounded-2xl flex flex-col shadow-xl">
+        <h3 className="text-xl font-bold mb-6 text-white">Voter Turnout Demographics (Gender)</h3>
+        <div className="grid md:grid-cols-2 items-center">
+          <div className="h-64">
+            {genderData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie
+                    data={genderData}
+                    cx="50%"
+                    cy="50%"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    dataKey="value"
+                    stroke="none"
+                  >
+                    {genderData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={GENDER_COLORS[index % GENDER_COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: '#1e293b', borderColor: '#475569', borderRadius: '0.5rem' }}
+                    itemStyle={{ color: '#fff' }}
+                  />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="h-full flex items-center justify-center text-slate-500 italic">
+                No demographic data available.
+              </div>
+            )}
+          </div>
+          <div className="space-y-4">
+            <h4 className="text-slate-300 font-semibold mb-4">Awareness Insights</h4>
+            {genderData.length > 0 ? (
+              <ul className="space-y-3">
+                {genderData.map((d, i) => (
+                  <li key={i} className="flex items-center justify-between text-sm">
+                    <span className="text-slate-400 flex items-center gap-2">
+                      <span className="w-3 h-3 rounded-full" style={{ backgroundColor: GENDER_COLORS[i % GENDER_COLORS.length] }}></span>
+                      {d.name} Participation
+                    </span>
+                    <span className="text-white font-bold">{Math.round((d.value / electionLogs.length) * 100)}%</span>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-sm text-slate-500">Waiting for more votes to generate insights...</p>
+            )}
+            <div className="mt-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
+              <p className="text-xs text-indigo-300 leading-relaxed">
+                This analysis helps in identifying participation gaps. Use this data to target awareness campaigns in regions or demographics with low voter turnout.
+              </p>
+            </div>
           </div>
         </div>
       </div>

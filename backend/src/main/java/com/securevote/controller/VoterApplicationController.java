@@ -65,6 +65,7 @@ public class VoterApplicationController {
         application.setIdProofPath(trimValue(application.getIdProofPath()));
         application.setIdProofDataUrl(trimValue(application.getIdProofDataUrl()));
         application.setPhotoDataUrl(trimValue(application.getPhotoDataUrl()));
+        application.setGender(trimValue(application.getGender()));
         application.setReviewNote("");
         application.setStatus("PENDING");
         application.setSubmittedAt(Instant.now());
@@ -89,6 +90,7 @@ public class VoterApplicationController {
         profile.setLocalBody(application.getLocalBody());
         profile.setWardNumber(application.getWardNumber());
         profile.setIdReferenceMasked(application.getIdReferenceMasked());
+        profile.setGender(application.getGender());
         voterProfileRepository.save(profile);
 
         return voterApplicationRepository.save(application);

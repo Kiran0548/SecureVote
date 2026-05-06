@@ -14,6 +14,7 @@ public class VoterProfile {
     private String localBody;
     private String wardNumber;
     private String idReferenceMasked;
+    private String gender;
 
     public VoterProfile() {}
 
@@ -63,5 +64,13 @@ public class VoterProfile {
 
     public void setIdReferenceMasked(String idReferenceMasked) {
         this.idReferenceMasked = idReferenceMasked;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 }

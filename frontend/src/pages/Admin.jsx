@@ -8,6 +8,7 @@ import { exportToCSV, exportToPDF } from "../utils/exportUtils";
 import { enrichElection, fetchElectionMetadataMap, saveElectionMetadata } from "../utils/electionMetadata";
 import { fetchAllVoterProfiles, maskIdReference, saveVoterProfile, deleteVoterProfile } from "../utils/voterProfile";
 import { fetchVoterApplications, reviewVoterApplication } from "../utils/voterApplications";
+import { fetchAllVoteLogs } from "../utils/voteLogs";
 import { useLanguage } from "../utils/i18n";
 
 function getDefaultDateTimeValue(offsetMinutes = 0) {
@@ -64,6 +65,7 @@ function Admin() {
   const [editingWallet, setEditingWallet] = useState("");
   const [editingProfile, setEditingProfile] = useState(null);
   const [viewingIdProof, setViewingIdProof] = useState(null);
+  const [allVoteLogs, setAllVoteLogs] = useState([]);
   const { t } = useLanguage();
 
   useEffect(() => {
@@ -336,7 +338,8 @@ function Admin() {
       setDescriptor(null);
       setSelectedApplicationId(null);
       setVoterProfiles(await fetchAllVoterProfiles().catch(() => []));
-      await loadApplications();
+      setVoterApplications(await fetchVoterApplications().catch(() => []));
+      setAllVoteLogs(await fetchAllVoteLogs().catch(() => []));
     } catch (err) {
       console.error(err);
       alert("Error: " + (err.reason || err.message));
@@ -546,6 +549,12 @@ function Admin() {
          }
          videosArray.push(videoHash);
       }
+      
+      // Automatically add NOTA candidate
+      namesArray.push("None of the Above (NOTA)");
+      logosArray.push("https://cdn-icons-png.flaticon.com/512/1792/1792557.png"); // NOTA Icon
+      manifestosArray.push("");
+      videosArray.push("");
       
       const startTimestamp = Math.floor(new Date(startTime).getTime() / 1000);
       const endTimestamp = Math.floor(new Date(endTime).getTime() / 1000);
@@ -1099,6 +1108,7 @@ function Admin() {
                             {application.reviewNote ? (
                               <p className="mt-1 text-xs text-slate-400">Review note: {application.reviewNote}</p>
                             ) : null}
+                            <p className="mt-2 text-xs font-bold uppercase text-slate-500">Gender: {application.gender || "Not specified"}</p>
                           </div>
 
                           <div className="flex flex-wrap gap-2">
@@ -1519,7 +1529,13 @@ function Admin() {
                 <p className="text-slate-400 text-center py-8">Loading analytics data...</p>
               ) : (
                 <>
-                  <AnalyticsDashboard candidates={results} contract={contract} electionId={selectedElectionId} />
+                  <AnalyticsDashboard 
+                    candidates={results} 
+                    contract={contract} 
+                    electionId={selectedElectionId} 
+                    voteLogs={allVoteLogs}
+                    voterProfiles={voterProfiles}
+                  />
                   
                   <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl backdrop-blur-sm shadow-xl mt-8 hidden md:block">
                     <h3 className="text-xl font-semibold mb-6 text-slate-300">Detailed Tally</h3>

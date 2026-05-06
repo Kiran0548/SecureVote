@@ -304,6 +304,21 @@ function Register() {
                   required
                 />
               </label>
+
+              <label className="space-y-2">
+                <span className="text-sm font-semibold">Gender</span>
+                <select
+                  value={form.gender}
+                  onChange={(event) => handleChange("gender", event.target.value)}
+                  className="w-full rounded-2xl border border-[var(--border-soft)] bg-[var(--surface-2)] px-4 py-3 text-sm text-inherit outline-none"
+                  required
+                >
+                  <option value="">Select Gender</option>
+                  <option value="Male">Male</option>
+                  <option value="Female">Female</option>
+                  <option value="Other">Other</option>
+                </select>
+              </label>
             </div>
 
             <label className="space-y-2">

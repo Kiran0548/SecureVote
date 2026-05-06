@@ -11,6 +11,7 @@ export const defaultVoterApplication = {
   idProofPath: "",
   idProofDataUrl: "",
   photoDataUrl: "",
+  gender: "",
   status: "PENDING",
   reviewNote: "",
 };
@@ -28,6 +29,7 @@ export function normalizeVoterApplication(application = {}) {
     idProofPath: (application.idProofPath || "").trim(),
     idProofDataUrl: application.idProofDataUrl || "",
     photoDataUrl: application.photoDataUrl || "",
+    gender: (application.gender || "").trim(),
     status: (application.status || "PENDING").trim().toUpperCase(),
     reviewNote: (application.reviewNote || "").trim(),
     submittedAt: application.submittedAt || "",

@@ -45,6 +45,8 @@ public class VoterApplication {
     @Column(columnDefinition = "CLOB")
     private String photoDataUrl;
 
+    private String gender;
+
     @Column(nullable = false)
     private String status;
 
@@ -140,6 +142,14 @@ public class VoterApplication {
 
     public void setPhotoDataUrl(String photoDataUrl) {
         this.photoDataUrl = photoDataUrl;
+    }
+
+    public String getGender() {
+        return gender;
+    }
+
+    public void setGender(String gender) {
+        this.gender = gender;
     }
 
     public String getStatus() {
