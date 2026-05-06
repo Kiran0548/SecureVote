@@ -1250,9 +1250,6 @@ function Admin() {
                           </div>
                         </div>
 
-                          </div>
-                        </div>
-
                         <div className="mt-4 grid gap-4 md:grid-cols-3">
                           <div>
                             <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Full Name</label>
