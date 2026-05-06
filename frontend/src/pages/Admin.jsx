@@ -688,6 +688,7 @@ function Admin() {
 
   const filteredApplications = voterApplications
     .slice()
+    .filter((app) => app.status === "PENDING")
     .filter((application) => {
       if (!applicationSearch.trim()) return true;
       const query = applicationSearch.trim().toLowerCase();
