@@ -56,6 +56,7 @@ function Admin() {
   const [voterDistrict, setVoterDistrict] = useState("");
   const [voterLocalBody, setVoterLocalBody] = useState("");
   const [voterWardNumber, setVoterWardNumber] = useState("");
+  const [voterGender, setVoterGender] = useState("");
   const [voterIdReference, setVoterIdReference] = useState("");
   const [voterProfiles, setVoterProfiles] = useState([]);
   const [voterApplications, setVoterApplications] = useState([]);
@@ -318,6 +319,7 @@ function Admin() {
         district: voterRegistrationType === "WARD_BASED" ? voterDistrict : "",
         localBody: voterRegistrationType === "WARD_BASED" ? voterLocalBody : "",
         wardNumber: voterRegistrationType === "WARD_BASED" ? voterWardNumber : "",
+        gender: voterGender,
         idReferenceMasked: maskIdReference(voterIdReference),
       });
       
@@ -333,6 +335,7 @@ function Admin() {
       setVoterDistrict("");
       setVoterLocalBody("");
       setVoterWardNumber("");
+      setVoterGender("");
       setVoterIdReference("");
       setPhoto(null);
       setDescriptor(null);
@@ -399,6 +402,7 @@ function Admin() {
     setVoterDistrict(application.district || "");
     setVoterLocalBody(application.localBody || "");
     setVoterWardNumber(application.wardNumber || "");
+    setVoterGender(application.gender || "");
     setVoterIdReference(application.idReferenceMasked || "");
     setSelectedApplicationId(application.id ?? null);
     applyApplicationPhoto(application.photoDataUrl || "");
@@ -980,6 +984,21 @@ function Admin() {
                   </div>
                 )}
                 <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-2">Gender</label>
+                  <select
+                    className="w-full bg-slate-900/50 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500 transition-colors"
+                    value={voterGender}
+                    onChange={(e) => setVoterGender(e.target.value)}
+                    disabled={loading}
+                    required
+                  >
+                    <option value="">Select Gender</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div>
                   <label className="block text-sm font-medium text-slate-300 mb-2">Voter ID / Aadhaar Reference</label>
                   <input
                     type="text"
@@ -1231,7 +1250,10 @@ function Admin() {
                           </div>
                         </div>
 
-                        <div className="mt-4 grid gap-4 md:grid-cols-2">
+                          </div>
+                        </div>
+
+                        <div className="mt-4 grid gap-4 md:grid-cols-3">
                           <div>
                             <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Full Name</label>
                             {isEditing ? (
@@ -1243,6 +1265,23 @@ function Admin() {
                               />
                             ) : (
                               <p className="text-sm text-slate-200">{currentProfile.fullName || "Not set"}</p>
+                            )}
+                          </div>
+                          <div>
+                            <label className="mb-2 block text-xs font-semibold uppercase tracking-wide text-slate-400">Gender</label>
+                            {isEditing ? (
+                              <select
+                                className="w-full bg-slate-950/70 border border-slate-600 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-indigo-500"
+                                value={currentProfile.gender}
+                                onChange={(e) => handleEditingProfileChange("gender", e.target.value)}
+                              >
+                                <option value="">Not set</option>
+                                <option value="Male">Male</option>
+                                <option value="Female">Female</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            ) : (
+                              <p className="text-sm text-slate-200">{currentProfile.gender || "Not set"}</p>
                             )}
                           </div>
                           <div>

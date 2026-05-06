@@ -85,11 +85,15 @@ const AnalyticsDashboard = ({ candidates, contract, electionId, voteLogs = [], v
   const winners = dataForWinner.filter(d => d.votes === maxVotes && maxVotes > 0);
 
   // Compute Gender Demographics
-  const electionLogs = voteLogs.filter(log => Number(log.electionId) === Number(electionId));
+  const electionLogs = (voteLogs || []).filter(log => {
+    if (!log || log.electionId === undefined) return false;
+    return Number(log.electionId) === Number(electionId);
+  });
+  
   const genderCounts = { Male: 0, Female: 0, Other: 0 };
   
   electionLogs.forEach(log => {
-    const profile = voterProfiles.find(p => p.walletAddress?.toLowerCase() === log.voter?.toLowerCase());
+    const profile = (voterProfiles || []).find(p => p.walletAddress?.toLowerCase() === log.voter?.toLowerCase());
     const gender = profile?.gender || "Other";
     if (genderCounts[gender] !== undefined) {
       genderCounts[gender]++;
@@ -223,16 +227,20 @@ const AnalyticsDashboard = ({ candidates, contract, electionId, voteLogs = [], v
                       <span className="w-3 h-3 rounded-full" style={{ backgroundColor: GENDER_COLORS[i % GENDER_COLORS.length] }}></span>
                       {d.name} Participation
                     </span>
-                    <span className="text-white font-bold">{Math.round((d.value / electionLogs.length) * 100)}%</span>
+                    <span className="text-white font-bold">{d.value} votes ({Math.round((d.value / electionLogs.length) * 100)}%)</span>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-slate-500">Waiting for more votes to generate insights...</p>
+              <div className="p-4 bg-slate-900/50 rounded-xl border border-slate-700">
+                <p className="text-sm text-slate-500 italic">No voter demographics captured. Ensure voters have gender set in their profiles before voting.</p>
+              </div>
             )}
             <div className="mt-6 p-4 bg-indigo-500/10 border border-indigo-500/20 rounded-xl">
               <p className="text-xs text-indigo-300 leading-relaxed">
-                This analysis helps in identifying participation gaps. Use this data to target awareness campaigns in regions or demographics with low voter turnout.
+                {electionLogs.length > 0 
+                  ? "This analysis helps in identifying participation gaps. Use this data to target awareness campaigns in regions or demographics with low voter turnout."
+                  : "Gender data is collected during voter registration. If voters registered before the gender field was added, their participation might show as 'Other' or be missing."}
               </p>
             </div>
           </div>
