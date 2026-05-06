@@ -417,7 +417,12 @@ function Vote() {
       
       const groupId = await contract.groupId();
       const filter = semaphoreContract.filters.MemberAdded(groupId);
-      const events = await semaphoreContract.queryFilter(filter, 0, "latest");
+      
+      // Get current block to avoid massive block scanning which fails on public RPCs
+      const currentBlock = await provider.getBlockNumber();
+      const fromBlock = currentBlock - 100000 > 0 ? currentBlock - 100000 : 0;
+      
+      const events = await semaphoreContract.queryFilter(filter, fromBlock, "latest");
       
       const group = new Group();
       for (let e of events) {
