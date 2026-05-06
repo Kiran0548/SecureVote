@@ -19,6 +19,7 @@ function Vote() {
   const [votes, setVotes] = useState([]);
   const [isWhitelisted, setIsWhitelisted] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
   const [modalManifesto, setModalManifesto] = useState("");
   const [loadingManifesto, setLoadingManifesto] = useState(false);
@@ -144,18 +145,29 @@ function Vote() {
   };
 
   const init = async () => {
+    setIsInitializing(true);
     const sc = await ensureContract();
-    if (!sc) return;
+    if (!sc) {
+      setIsInitializing(false);
+      return;
+    }
 
     try {
-      const metadataMap = await fetchElectionMetadataMap();
       const accounts = await window.ethereum.request({ method: "eth_accounts" });
-      if (accounts.length === 0) return;
+      if (accounts.length === 0) {
+        setIsInitializing(false);
+        return;
+      }
       
       const whitelisted = await sc.isWhitelisted(accounts[0]);
       setIsWhitelisted(whitelisted);
-      const backendProfile = await fetchVoterProfile(accounts[0]);
-      const onChainProfile = await getOnChainVoterProfile(sc, accounts[0]);
+
+      const [metadataMap, backendProfile, onChainProfile] = await Promise.all([
+        fetchElectionMetadataMap(),
+        fetchVoterProfile(accounts[0]).catch(() => defaultVoterProfile),
+        getOnChainVoterProfile(sc, accounts[0])
+      ]);
+
       setVoterProfile({
         ...backendProfile,
         ...(onChainProfile || {}),
@@ -164,26 +176,34 @@ function Vote() {
       const count = await sc.electionCount();
       setElectionCount(Number(count));
       const electionsArr = [];
+      const electionPromises = [];
+
       for (let i = 1; i <= Number(count); i++) {
-        try {
-          const e = await sc.elections(i);
-          if (Number(e.state) === 1) { // Ongoing
-            const chainMetadata = await getOnChainElectionMetadata(sc, i);
-            const onChainEligible = await getOnChainEligibility(sc, accounts[0], i);
-            electionsArr.push(enrichElection({
-              id: Number(e.id),
-              title: e.title,
-              state: Number(e.state),
-              startTime: Number(e.startTime),
-              endTime: Number(e.endTime),
-              metadata: chainMetadata,
-              onChainEligible,
-            }, metadataMap));
-          }
-        } catch (err) {
-          console.warn(`Failed to load election #${i}:`, err);
-        }
+        electionPromises.push(
+          sc.elections(i).then(async (e) => {
+            if (Number(e.state) === 1) { // Ongoing
+              const chainMetadata = await getOnChainElectionMetadata(sc, i);
+              const onChainEligible = await getOnChainEligibility(sc, accounts[0], i);
+              return enrichElection({
+                id: Number(e.id),
+                title: e.title,
+                state: Number(e.state),
+                startTime: Number(e.startTime),
+                endTime: Number(e.endTime),
+                metadata: chainMetadata,
+                onChainEligible,
+              }, metadataMap);
+            }
+            return null;
+          }).catch(err => {
+            console.warn(`Failed to load election #${i}:`, err);
+            return null;
+          })
+        );
       }
+      
+      const resolvedElections = await Promise.all(electionPromises);
+      electionsArr.push(...resolvedElections.filter(e => e !== null));
       setAllElections(electionsArr);
 
       const registered = await sc.hasRegisteredIdentity(accounts[0]);
@@ -198,6 +218,8 @@ function Vote() {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsInitializing(false);
     }
   };
 
@@ -618,6 +640,15 @@ function Vote() {
         <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl text-center backdrop-blur-sm max-w-lg mx-auto">
            <svg className="w-16 h-16 text-indigo-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"></path></svg>
           <p className="text-slate-300 text-lg mb-6">{t("vote.connectWalletPrompt")}</p>
+        </div>
+      ) : isInitializing ? (
+        <div className="bg-slate-800/50 border border-slate-700 p-12 rounded-2xl text-center backdrop-blur-sm flex flex-col items-center justify-center space-y-4 max-w-lg mx-auto">
+          <svg className="w-12 h-12 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-indigo-400 text-xl font-semibold">Loading election data...</p>
+          <p className="text-slate-400 text-sm">Please allow up to 50 seconds for the server to wake up.</p>
         </div>
       ) : !isWhitelisted ? (
         <div className="bg-yellow-900/20 border border-yellow-500/30 p-8 rounded-2xl text-center backdrop-blur-sm max-w-lg mx-auto">

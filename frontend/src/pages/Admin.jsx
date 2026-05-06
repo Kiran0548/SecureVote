@@ -23,6 +23,7 @@ function Admin() {
   const [whitelistAddress, setWhitelistAddress] = useState("");
   const [candidates, setCandidates] = useState([{ name: "", logoUrl: "", logoFile: null, manifesto: "", videoFile: null }]);
   const [loading, setLoading] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(true);
   const [pinataJwt, setPinataJwt] = useState(import.meta.env.VITE_PINATA_JWT || localStorage.getItem("pinataJwt") || "");
 
   // Face Registration states
@@ -142,17 +143,29 @@ function Admin() {
   };
 
   const init = async () => {
+    setIsInitializing(true);
     const sc = await ensureContract();
-    if (!sc) return;
+    if (!sc) {
+      setIsInitializing(false);
+      return;
+    }
 
     try {
-      const metadataMap = await fetchElectionMetadataMap();
-      const savedProfiles = await fetchAllVoterProfiles().catch(() => []);
-      const savedApplications = await fetchVoterApplications().catch(() => []);
+      const accounts = await window.ethereum.request({ method: "eth_accounts" });
+      if (accounts.length === 0) {
+        setIsInitializing(false);
+        return;
+      }
+
+      // Fetch all required data in parallel
+      const [metadataMap, savedProfiles, savedApplications] = await Promise.all([
+        fetchElectionMetadataMap(),
+        fetchAllVoterProfiles().catch(() => []),
+        fetchVoterApplications().catch(() => [])
+      ]);
+      
       setVoterProfiles(savedProfiles);
       setVoterApplications(savedApplications);
-      const accounts = await window.ethereum.request({ method: "eth_accounts" });
-      if (accounts.length === 0) return;
 
       // Check if current user is owner
       const owner = await sc.owner();
@@ -161,20 +174,25 @@ function Admin() {
       // Fetch All Elections
       const count = await sc.electionCount();
       const electionsArr = [];
+      const electionPromises = [];
+      
       for (let i = 1; i <= Number(count); i++) {
-        try {
-          const e = await sc.elections(i);
-          electionsArr.push(enrichElection({
+        electionPromises.push(
+          sc.elections(i).then(e => enrichElection({
             id: Number(e.id),
             title: e.title,
             state: Number(e.state),
             startTime: Number(e.startTime),
             endTime: Number(e.endTime)
-          }, metadataMap));
-        } catch (err) {
-          console.warn(`Failed to load election #${i}:`, err);
-        }
+          }, metadataMap)).catch(err => {
+            console.warn(`Failed to load election #${i}:`, err);
+            return null;
+          })
+        );
       }
+      
+      const resolvedElections = await Promise.all(electionPromises);
+      electionsArr.push(...resolvedElections.filter(e => e !== null));
       setAllElections(electionsArr);
 
       // Automatically select the latest election if none selected
@@ -196,6 +214,8 @@ function Admin() {
       }
     } catch (err) {
       console.error(err);
+    } finally {
+      setIsInitializing(false);
     }
   };
 
@@ -763,6 +783,15 @@ function Admin() {
       {!account ? (
         <div className="bg-slate-800/50 border border-slate-700 p-8 rounded-2xl text-center backdrop-blur-sm">
           <p className="text-yellow-400 text-lg">Please connect your wallet to access the Admin Panel modules.</p>
+        </div>
+      ) : isInitializing ? (
+        <div className="bg-slate-800/50 border border-slate-700 p-12 rounded-2xl text-center backdrop-blur-sm flex flex-col items-center justify-center space-y-4">
+          <svg className="w-12 h-12 text-indigo-500 animate-spin" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+          </svg>
+          <p className="text-indigo-400 text-xl font-semibold">Waking up backend and loading data...</p>
+          <p className="text-slate-400 text-sm">Please allow up to 50 seconds for the server to wake up from sleep mode.</p>
         </div>
       ) : (
         <div className="space-y-8">
